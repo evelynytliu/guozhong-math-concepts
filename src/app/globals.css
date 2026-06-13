@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* 溫和、有呼吸感的配色：暖白底 + 沉穩的青藍主色，避免大紅大綠。 */
+    --background: 38 36% 97%;
+    --foreground: 222 22% 22%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 22% 22%;
+
+    --primary: 199 64% 36%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 38 30% 92%;
+    --secondary-foreground: 222 22% 25%;
+
+    --muted: 38 24% 93%;
+    --muted-foreground: 222 10% 46%;
+
+    --accent: 22 68% 52%;
+    --accent-foreground: 0 0% 100%;
+
+    --border: 38 20% 86%;
+    --input: 38 20% 84%;
+    --ring: 199 64% 40%;
+
+    /* 語意色：對的時候是柔和的綠，不是螢光綠；提醒/不太對是暖琥珀，不是刺眼紅。 */
+    --correct: 152 38% 40%;
+    --correct-foreground: 0 0% 100%;
+    --gentle: 35 78% 50%;
+    --gentle-foreground: 30 45% 22%;
+
+    --radius: 0.85rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  /* 數學內容讀起來舒服一點：行高大方 */
+  p {
+    line-height: 1.85;
+  }
+}
+
+@layer utilities {
+  /* 數線刻度文字不要被選取干擾 */
+  .select-none-all {
+    user-select: none;
+  }
+}
