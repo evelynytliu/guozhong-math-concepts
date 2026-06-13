@@ -13,8 +13,13 @@ import type {
   ExplainResponse,
 } from "@/lib/explanation";
 
+// 靜態匯出（GitHub Pages, BUILD_TARGET=pages）不能有後端 POST handler。
+// 此時把這個 route 變成空的（不輸出 POST），前端呼叫失敗會自動退回靜態解釋。
+// 本機 / 一般部署則維持完整的 force-dynamic POST。
+const isStaticExport = process.env.BUILD_TARGET === "pages";
+
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+export const dynamic = isStaticExport ? "force-static" : "force-dynamic";
 
 const SYSTEM_PROMPT = `你是一位有經驗、溫暖的國中數學老師，正在看一個剛升國一的孩子用自己的話寫下的概念解釋。
 
@@ -75,7 +80,9 @@ function parseFeedback(raw: string): AiFeedback | null {
   }
 }
 
-export async function POST(request: Request): Promise<NextResponse<ExplainResponse>> {
+async function handleExplain(
+  request: Request,
+): Promise<NextResponse<ExplainResponse>> {
   let body: ExplainRequest;
   try {
     body = (await request.json()) as ExplainRequest;
@@ -164,3 +171,7 @@ export async function POST(request: Request): Promise<NextResponse<ExplainRespon
     clearTimeout(timeout);
   }
 }
+
+// 靜態匯出時 POST 為 undefined（route 沒有 handler，可被靜態輸出）；
+// 其他情況維持正常的 POST handler。
+export const POST = isStaticExport ? undefined : handleExplain;

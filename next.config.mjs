@@ -1,10 +1,29 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  reactStrictMode: true,
-  // 本地優先：AI 環節用 Agent SDK，需把它標記為外部套件，避免被打包進前端
-  experimental: {
-    serverComponentsExternalPackages: ["@anthropic-ai/claude-agent-sdk"],
-  },
-};
+
+// BUILD_TARGET=pages 時，產出純靜態網站給 GitHub Pages 用：
+//   - output: 'export' 產生 out/ 靜態檔
+//   - basePath/assetPrefix 對應 https://<user>.github.io/<repo>/
+//   - 靜態站沒有後端，AI route 不會被輸出（前端會自動退回靜態解釋）
+//   - 靜態站不帶 Supabase 金鑰 → 自動用 localStorage，每位訪客各自獨立、不外洩
+// 不設這個變數時（本機 npm run dev / npm run start）一切照舊，含 AI + Supabase。
+
+const isPages = process.env.BUILD_TARGET === "pages";
+const repo = "guozhong-math-concepts";
+
+const nextConfig = isPages
+  ? {
+      reactStrictMode: true,
+      output: "export",
+      basePath: `/${repo}`,
+      assetPrefix: `/${repo}/`,
+      trailingSlash: true,
+      images: { unoptimized: true },
+    }
+  : {
+      reactStrictMode: true,
+      experimental: {
+        serverComponentsExternalPackages: ["@anthropic-ai/claude-agent-sdk"],
+      },
+    };
 
 export default nextConfig;

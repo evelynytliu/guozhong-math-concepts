@@ -10,8 +10,24 @@ npm install
 npm run dev
 ```
 
-打開 http://localhost:3000 即可。**不要部署到雲端**——AI 環節用本機 `claude login`
-的訂閱認證，部署上雲就沒辦法用訂閱認證了。
+打開 http://localhost:3000 即可。本機版本是**完整版**：單元 1–3、單元二的 AI 判斷
+（需先 `claude login`）、Supabase 雲端存進度，全部都在。
+
+## 兩個版本：本機完整版 vs 公開靜態版
+
+| | 五段式流程 / 單元 1、3 | 單元 2 的 AI 追問 | 進度儲存 |
+|---|---|---|---|
+| **本機 `npm run dev`** | ✅ | ✅（用 `claude login` 訂閱） | ✅ Supabase 雲端 |
+| **公開版（GitHub Pages）** | ✅ | ❌ 自動退回靜態參考解釋 | 各裝置自己的 localStorage |
+
+AI 判斷靠本機 `claude login` 的訂閱認證跑，**只能在自己電腦上用**，任何雲端靜態網站都登不進訂閱，
+所以公開版會自動退回靜態模式（孩子不會卡住）。公開版也**不帶 Supabase 金鑰**，每位訪客各自獨立、資料不外洩。
+
+### 公開網址（GitHub Pages）
+
+- 網址：`https://evelynytliu.github.io/guozhong-math-concepts/`
+- 部署方式：push 到 `main` 就會由 [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) 自動建置（`BUILD_TARGET=pages`，產出靜態 `out/`）並發佈。
+- 本機要預覽靜態版：`BUILD_TARGET=pages npm run build`，產物在 `out/`。
 
 ## 五段式流程（每個單元都一樣）
 
