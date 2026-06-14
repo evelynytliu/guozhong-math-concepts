@@ -16,7 +16,7 @@ export interface SpiralQuestion {
 
 export const spiralPool: SpiralQuestion[] = [
   // 單元 1：負數與數線・絕對值＝距離
-  { id: "s01a", unitId: "unit-01", concept: "絕對值＝離 0 的距離", question: "|-15| 和 |+9|，哪個離 0 比較遠？為什麼？", answer: "|-15|=15、|+9|=9，比的是距離，所以 -15 離 0 比較遠。" },
+  { id: "s01a", unitId: "unit-01", concept: "絕對值＝離 0 的距離", question: "比較 -15 和 +9 的絕對值（寫成 |-15| 和 |+9|），哪個離 0 比較遠？為什麼？", answer: "|-15|=15、|+9|=9，比的是距離，所以 -15 離 0 比較遠。" },
   { id: "s01b", unitId: "unit-01", concept: "數線上的移動", question: "從 -4 出發，往右走 7 格，會停在哪裡？", answer: "+3（-4 往右 7 格 = -4+7 = 3）。" },
   { id: "s01c", unitId: "unit-01", concept: "負數的加減（情境）", question: "氣溫原本 3°C，下降了 8 度，現在幾度？", answer: "-5°C（3 - 8 = -5）。" },
 
