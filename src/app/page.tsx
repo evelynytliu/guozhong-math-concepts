@@ -6,7 +6,7 @@ import { units } from "@/content";
 import { getAllProgress, type UnitProgress } from "@/lib/storage";
 import { SECTION_LABELS } from "@/components/progress-stepper";
 import { cn } from "@/lib/utils";
-import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Repeat, Sparkles } from "lucide-react";
 
 export default function HomePage() {
   const [progress, setProgress] = React.useState<
@@ -40,6 +40,25 @@ export default function HomePage() {
           最後用<strong className="text-foreground">變形題</strong>驗證你是真懂、還是在背題型。
         </p>
       </header>
+
+      {/* 螺旋複習入口 */}
+      <Link
+        href="/review"
+        className="group mb-4 flex items-center justify-between gap-4 rounded-2xl border border-accent/30 bg-accent/5 p-5 transition-all hover:border-accent/50 hover:shadow-md"
+      >
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/15 text-accent">
+            <Repeat className="h-5 w-5" />
+          </span>
+          <div>
+            <h2 className="font-bold tracking-tight">螺旋複習</h2>
+            <p className="text-sm text-muted-foreground">
+              把學過的概念，用新題目混合練一遍（不用重看舊內容）
+            </p>
+          </div>
+        </div>
+        <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-accent" />
+      </Link>
 
       <div className="space-y-4">
         {units.map((unit) => {
