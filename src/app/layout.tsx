@@ -3,9 +3,9 @@ import "./globals.css";
 import { PasscodeGate } from "@/components/passcode-gate";
 
 export const metadata: Metadata = {
-  title: "國中數學・概念理解",
+  title: "升國中・暑假學習基地",
   description:
-    "不是給更多題目，而是讓你看到概念怎麼來、用自己的話講清楚、再用變形題驗證你是真懂。",
+    "暑假作業引導打草稿（再親手抄到作業本）+ 國中數學概念理解。重點都一樣：用自己的話想出來，不是照背、照抄。",
 };
 
 export default function RootLayout({

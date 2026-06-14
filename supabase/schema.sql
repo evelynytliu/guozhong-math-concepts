@@ -27,9 +27,29 @@ create table if not exists public.mathconcept_explanations (
 create index if not exists mathconcept_explanations_unit_idx
   on public.mathconcept_explanations (unit_id, created_at desc);
 
+-- ── 暑假作業引導 ──────────────────────────────────────
+-- 報告類作業的草稿（每份作業一列；fields 是欄位 id → 孩子寫的文字）
+create table if not exists public.mathconcept_homework_drafts (
+  id uuid primary key default gen_random_uuid(),
+  homework_id text not null unique,
+  fields jsonb not null default '{}'::jsonb,
+  hand_copied boolean not null default false,        -- 是否已把草稿手抄到作業本
+  updated_at timestamptz not null default now()
+);
+
+-- 英文單字表的精熟進度（每份作業一列；記哪些卡已拼對過）
+create table if not exists public.mathconcept_homework_vocab (
+  id uuid primary key default gen_random_uuid(),
+  homework_id text not null unique,
+  mastered_card_ids jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 -- 自用專案：開 RLS 但允許完整存取（資料只在自己機器上用）
 alter table public.mathconcept_progress enable row level security;
 alter table public.mathconcept_explanations enable row level security;
+alter table public.mathconcept_homework_drafts enable row level security;
+alter table public.mathconcept_homework_vocab enable row level security;
 
 drop policy if exists "mathconcept allow all progress" on public.mathconcept_progress;
 create policy "mathconcept allow all progress" on public.mathconcept_progress
@@ -37,4 +57,12 @@ create policy "mathconcept allow all progress" on public.mathconcept_progress
 
 drop policy if exists "mathconcept allow all explanations" on public.mathconcept_explanations;
 create policy "mathconcept allow all explanations" on public.mathconcept_explanations
+  for all using (true) with check (true);
+
+drop policy if exists "mathconcept allow all hw drafts" on public.mathconcept_homework_drafts;
+create policy "mathconcept allow all hw drafts" on public.mathconcept_homework_drafts
+  for all using (true) with check (true);
+
+drop policy if exists "mathconcept allow all hw vocab" on public.mathconcept_homework_vocab;
+create policy "mathconcept allow all hw vocab" on public.mathconcept_homework_vocab
   for all using (true) with check (true);
