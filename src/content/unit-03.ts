@@ -14,7 +14,7 @@ import type { Unit } from "./types";
 export const unit03: Unit = {
   id: "unit-03",
   title: "因數倍數・最大公因數與最小公倍數",
-  order: 3,
+  order: 5,
   checkMode: "static",
   summary:
     "搞懂質因數分解在做什麼、GCD 與 LCM 各自在解決什麼問題，以及怎麼分辨一題該用哪一個。",

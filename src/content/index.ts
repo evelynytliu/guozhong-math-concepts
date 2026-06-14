@@ -6,11 +6,20 @@ import type { Unit } from "./types";
 import { unit01 } from "./unit-01";
 import { unit02 } from "./unit-02";
 import { unit03 } from "./unit-03";
+import { unit04 } from "./unit-04";
+import { unit05 } from "./unit-05";
+import { unit06 } from "./unit-06";
 
 // 依 order 排序，首頁與單元頁都用這個順序
-export const units: Unit[] = [unit01, unit02, unit03].sort(
-  (a, b) => a.order - b.order,
-);
+// 七上自然進程：負數→整數運算→方程式解法→應用題→因倍數→比例
+export const units: Unit[] = [
+  unit01,
+  unit02,
+  unit03,
+  unit04,
+  unit05,
+  unit06,
+].sort((a, b) => a.order - b.order);
 
 export function getUnit(id: string): Unit | undefined {
   return units.find((u) => u.id === id);
