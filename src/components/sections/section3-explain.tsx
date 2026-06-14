@@ -4,6 +4,7 @@ import * as React from "react";
 import type { Unit, SelfAssessment } from "@/content/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceButton } from "@/components/voice/voice-button";
 import { cn } from "@/lib/utils";
 import { requestAiFeedback, type AiFeedback } from "@/lib/explanation";
 import { saveExplanation } from "@/lib/storage";
@@ -77,7 +78,10 @@ export function Section3Explain({ unit }: { unit: Unit }) {
             </span>
           )}
         </p>
-        <h2 className="mt-1 text-2xl font-bold tracking-tight">{s.heading}</h2>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h2 className="text-2xl font-bold tracking-tight">{s.heading}</h2>
+          <VoiceButton unit={unit} sectionKey="explain" />
+        </div>
       </header>
 
       <div className="rounded-xl border bg-card p-5">

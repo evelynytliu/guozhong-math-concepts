@@ -18,12 +18,16 @@ const nextConfig = isPages
       assetPrefix: `/${repo}/`,
       trailingSlash: true,
       images: { unoptimized: true },
+      // 讓前端能算出音檔等 public/ 資產的正確網址（公開版要帶 repo 前綴）
+      env: { NEXT_PUBLIC_BASE_PATH: `/${repo}` },
     }
   : {
       reactStrictMode: true,
       experimental: {
         serverComponentsExternalPackages: ["@anthropic-ai/claude-agent-sdk"],
       },
+      // 本機版沒有前綴，老師語音音檔走根路徑 /audio/...
+      env: { NEXT_PUBLIC_BASE_PATH: "" },
     };
 
 export default nextConfig;

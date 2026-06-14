@@ -5,6 +5,7 @@ import type { Unit, VariantQuestion } from "@/content/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceButton } from "@/components/voice/voice-button";
 import { cn } from "@/lib/utils";
 import { Target } from "lucide-react";
 
@@ -54,7 +55,10 @@ export function Section4Variants({
     <div className="animate-fade-in space-y-6">
       <header>
         <p className="text-sm font-medium text-primary">第 4 段・變形題驗證</p>
-        <h2 className="mt-1 text-2xl font-bold tracking-tight">{s.heading}</h2>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h2 className="text-2xl font-bold tracking-tight">{s.heading}</h2>
+          <VoiceButton unit={unit} sectionKey="variants" />
+        </div>
         <p className="mt-2 text-muted-foreground">
           這 3 題考的是同一個概念，只是換了外觀。每題寫完後展開對照，誠實標記自己對不對。
         </p>

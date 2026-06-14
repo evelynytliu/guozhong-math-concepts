@@ -3,6 +3,7 @@
 import * as React from "react";
 import type { Unit } from "@/content/types";
 import { Button } from "@/components/ui/button";
+import { VoiceButton } from "@/components/voice/voice-button";
 import { Lightbulb } from "lucide-react";
 
 export function Section1Intro({ unit }: { unit: Unit }) {
@@ -13,7 +14,10 @@ export function Section1Intro({ unit }: { unit: Unit }) {
     <div className="animate-fade-in space-y-6">
       <header>
         <p className="text-sm font-medium text-primary">第 1 段・情境引入</p>
-        <h2 className="mt-1 text-2xl font-bold tracking-tight">{heading}</h2>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h2 className="text-2xl font-bold tracking-tight">{heading}</h2>
+          <VoiceButton unit={unit} sectionKey="intro" />
+        </div>
       </header>
 
       <div className="space-y-1.5 text-[17px] leading-relaxed text-foreground/90">

@@ -5,6 +5,7 @@ import type { Unit, GuidedStep } from "@/content/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberLine } from "@/components/number-line";
+import { VoiceButton } from "@/components/voice/voice-button";
 import { cn } from "@/lib/utils";
 import { Lock, Sparkles } from "lucide-react";
 
@@ -60,7 +61,10 @@ export function Section2Guided({
     <div className="animate-fade-in space-y-6">
       <header>
         <p className="text-sm font-medium text-primary">第 2 段・引導推導</p>
-        <h2 className="mt-1 text-2xl font-bold tracking-tight">{heading}</h2>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h2 className="text-2xl font-bold tracking-tight">{heading}</h2>
+          <VoiceButton unit={unit} sectionKey="guided" />
+        </div>
         <p className="mt-2 text-muted-foreground">
           一步一步來，答完一步才會打開下一步。不要急著背結論，跟著想就好。
         </p>

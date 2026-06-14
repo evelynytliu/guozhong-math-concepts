@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { PasscodeGate } from "@/components/passcode-gate";
+import { VoiceProvider } from "@/components/voice/voice-provider";
+import { VoicePanel } from "@/components/voice/voice-panel";
 
 export const metadata: Metadata = {
   title: "升國中・暑假學習基地",
@@ -16,9 +18,12 @@ export default function RootLayout({
   return (
     <html lang="zh-Hant">
       <body className="min-h-screen antialiased">
-        <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 sm:px-6">
-          <PasscodeGate>{children}</PasscodeGate>
-        </div>
+        <VoiceProvider>
+          <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 sm:px-6">
+            <PasscodeGate>{children}</PasscodeGate>
+          </div>
+          <VoicePanel />
+        </VoiceProvider>
       </body>
     </html>
   );

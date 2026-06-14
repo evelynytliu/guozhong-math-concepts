@@ -5,6 +5,13 @@
 
 export type CheckMode = "static" | "ai";
 
+// 老師語音（旁白）用的 key：對應五段式的每一段。
+// 每個單元都可以針對這幾段手寫一段「給耳朵聽」的旁白稿（見 content/narration.ts）；
+// 沒手寫的段落，lib/narration.ts 會自動從畫面內容生成可朗讀的版本。
+export type NarrationKey = "intro" | "guided" | "explain" | "variants" | "recap";
+
+export type UnitNarration = Partial<Record<NarrationKey, string>>;
+
 // 互動類型。前端依這個值決定要渲染哪種輸入元件。
 //   input            → 純文字／數字輸入
 //   choice           → 選擇題（需提供 choices）

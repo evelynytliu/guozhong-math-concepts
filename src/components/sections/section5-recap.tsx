@@ -1,6 +1,7 @@
 "use client";
 
 import type { Unit } from "@/content/types";
+import { VoiceButton } from "@/components/voice/voice-button";
 import { Mic } from "lucide-react";
 
 export function Section5Recap({ unit }: { unit: Unit }) {
@@ -9,7 +10,10 @@ export function Section5Recap({ unit }: { unit: Unit }) {
     <div className="animate-fade-in space-y-6">
       <header>
         <p className="text-sm font-medium text-primary">第 5 段・回扣</p>
-        <h2 className="mt-1 text-2xl font-bold tracking-tight">{s.heading}</h2>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <h2 className="text-2xl font-bold tracking-tight">{s.heading}</h2>
+          <VoiceButton unit={unit} sectionKey="recap" />
+        </div>
       </header>
 
       <div className="rounded-xl border border-accent/30 bg-accent/5 p-6">
