@@ -33,6 +33,11 @@ jobs:
         run: npm run build
         env:
           BUILD_TARGET: pages
+          # 公開版也連同一個 Supabase（兩邊資料共通）。這些值會被打進靜態網站，
+          # 所以用密碼門（NEXT_PUBLIC_APP_PASSCODE）擋住路過的陌生人。
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_APP_PASSCODE: ${{ secrets.NEXT_PUBLIC_APP_PASSCODE }}
       - name: Disable Jekyll (keep _next folder)
         run: touch out/.nojekyll
       - uses: actions/configure-pages@v5

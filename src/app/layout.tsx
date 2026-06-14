@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { PasscodeGate } from "@/components/passcode-gate";
 
 export const metadata: Metadata = {
   title: "國中數學・概念理解",
@@ -16,7 +17,7 @@ export default function RootLayout({
     <html lang="zh-Hant">
       <body className="min-h-screen antialiased">
         <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 sm:px-6">
-          {children}
+          <PasscodeGate>{children}</PasscodeGate>
         </div>
       </body>
     </html>
