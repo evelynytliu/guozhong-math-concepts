@@ -42,7 +42,7 @@ export const spiralPool: SpiralQuestion[] = [
 
   // 單元 6：比與比例式
   { id: "s06a", unitId: "unit-06", concept: "解比例式", question: "解 x : 8 = 3 : 4", answer: "x = 6（交叉相乘 4x = 24，背後是兩邊同乘）。" },
-  { id: "s06b", unitId: "unit-06", concept: "比的份數（情境）", question: "果汁 : 水 = 2 : 5，要做 21 杯，水要幾杯？", answer: "15 杯。一共 7 份、每份 3 杯，水佔 5 份 = 15 杯。" },
+  { id: "s06b", unitId: "unit-06", concept: "比的份數（情境）", question: "果汁 : 水 = 2 : 5，要調 21 杯飲料（果汁和水加起來共 21 杯），水要幾杯？", answer: "15 杯。一共 7 份、每份 3 杯，水佔 5 份 = 15 杯。" },
   { id: "s06c", unitId: "unit-06", concept: "先判斷正比/反比", question: "3 個工人 6 天蓋好一道牆，6 個工人要幾天？", answer: "3 天。人多天數少 → 這是反比！總工作量 18 人天 ÷ 6 人 = 3 天（別反射交叉相乘）。" },
 ];
 

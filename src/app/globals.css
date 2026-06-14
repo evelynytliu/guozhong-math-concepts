@@ -4,36 +4,39 @@
 
 @layer base {
   :root {
-    /* 溫和、有呼吸感的配色：暖白底 + 沉穩的青藍主色，避免大紅大綠。 */
-    --background: 38 36% 97%;
-    --foreground: 222 22% 22%;
+    /* 糖果色但仍好讀：紫靛主色 + 暖橘點綴 + 薄荷綠（對）+ 金黃（提醒）。 */
+    --background: 250 100% 99%;
+    --foreground: 240 28% 18%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 22% 22%;
+    --card-foreground: 240 28% 18%;
 
-    --primary: 199 64% 36%;
+    --primary: 252 83% 62%;
     --primary-foreground: 0 0% 100%;
+    /* 主色漸層的第二個色相（紫） */
+    --primary-2: 280 82% 64%;
 
-    --secondary: 38 30% 92%;
-    --secondary-foreground: 222 22% 25%;
+    --secondary: 252 60% 95%;
+    --secondary-foreground: 250 30% 32%;
 
-    --muted: 38 24% 93%;
-    --muted-foreground: 222 10% 46%;
+    --muted: 250 40% 96%;
+    --muted-foreground: 250 12% 46%;
 
-    --accent: 22 68% 52%;
+    --accent: 22 92% 56%;
     --accent-foreground: 0 0% 100%;
+    --accent-2: 340 88% 62%;
 
-    --border: 38 20% 86%;
-    --input: 38 20% 84%;
-    --ring: 199 64% 40%;
+    --border: 250 35% 90%;
+    --input: 250 35% 88%;
+    --ring: 252 83% 62%;
 
-    /* 語意色：對的時候是柔和的綠，不是螢光綠；提醒/不太對是暖琥珀，不是刺眼紅。 */
-    --correct: 152 38% 40%;
+    /* 語意色：對＝薄荷綠、提醒＝金黃（都柔和不刺眼） */
+    --correct: 162 70% 40%;
     --correct-foreground: 0 0% 100%;
-    --gentle: 35 78% 50%;
-    --gentle-foreground: 30 45% 22%;
+    --gentle: 38 95% 53%;
+    --gentle-foreground: 28 55% 24%;
 
-    --radius: 0.85rem;
+    --radius: 1.1rem;
   }
 }
 
@@ -42,20 +45,104 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    /* 放射狀漸層「色彩花團」背景，取代素底（參考 emmett-review 的活潑感） */
+    color: hsl(var(--foreground));
+    background:
+      radial-gradient(1100px 620px at 6% -10%, hsl(258 100% 90% / 0.55) 0%, transparent 55%),
+      radial-gradient(1000px 620px at 104% 6%, hsl(180 90% 84% / 0.45) 0%, transparent 55%),
+      radial-gradient(960px 640px at 50% 112%, hsl(330 100% 90% / 0.5) 0%, transparent 55%),
+      hsl(250 100% 99%);
+    background-attachment: fixed;
+    min-height: 100vh;
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
-  /* 數學內容讀起來舒服一點：行高大方 */
   p {
     line-height: 1.85;
   }
 }
 
+@layer components {
+  /* 漸層底（按鈕、徽章用） */
+  .grad-primary {
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--primary)),
+      hsl(var(--primary-2))
+    );
+  }
+  .grad-accent {
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--accent)),
+      hsl(var(--accent-2))
+    );
+  }
+  /* 漸層文字（標題用） */
+  .text-gradient {
+    background-image: linear-gradient(
+      120deg,
+      hsl(var(--primary)),
+      hsl(var(--primary-2)),
+      hsl(var(--accent))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  /* 柔和雙層陰影（卡片用） */
+  .shadow-soft {
+    box-shadow:
+      0 14px 40px rgba(40, 30, 80, 0.08),
+      0 2px 6px rgba(40, 30, 80, 0.05);
+  }
+}
+
 @layer utilities {
-  /* 數線刻度文字不要被選取干擾 */
   .select-none-all {
     user-select: none;
   }
+}
+
+/* ── 動畫 ── */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes float-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(8deg);
+  }
+}
+@keyframes pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+.animate-pop {
+  animation: pop 0.32s ease-out;
+}
+.float-bob {
+  animation: float-bob 8s ease-in-out infinite;
 }

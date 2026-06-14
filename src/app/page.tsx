@@ -26,13 +26,34 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-1 flex-col py-10">
-      <header className="mb-8">
+      <header className="relative mb-8">
+        {/* 浮動 emoji 裝飾（純裝飾、不擋點擊） */}
+        <span
+          aria-hidden
+          className="float-bob pointer-events-none absolute right-1 top-0 hidden text-4xl opacity-70 sm:block"
+        >
+          🧮
+        </span>
+        <span
+          aria-hidden
+          className="float-bob pointer-events-none absolute right-16 top-9 hidden text-2xl opacity-60 sm:block"
+          style={{ animationDelay: "1.6s" }}
+        >
+          ✨
+        </span>
+        <span
+          aria-hidden
+          className="float-bob pointer-events-none absolute right-28 top-1 hidden text-xl opacity-50 sm:block"
+          style={{ animationDelay: "3.2s" }}
+        >
+          💡
+        </span>
         <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
           <Sparkles className="h-4 w-4" />
           概念理解，不是多寫題目
         </div>
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          國中數學・把概念打扎實
+        <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+          <span className="text-gradient">國中數學・把概念打扎實</span>
         </h1>
         <p className="mt-3 max-w-2xl text-[17px] leading-relaxed text-muted-foreground">
           每個單元都用同一套五段式流程：先看見概念怎麼來，自己一步步把規則推出來，
