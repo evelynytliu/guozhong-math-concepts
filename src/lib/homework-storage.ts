@@ -183,6 +183,54 @@ export async function getAllVocabProgress(): Promise<
   return lsRead<Record<string, VocabProgressData>>(VOCAB_KEY, {});
 }
 
+export async function syncHomeworkLocalToSupabase(): Promise<{
+  draftCount: number;
+  vocabCount: number;
+  error: string | null;
+}> {
+  const sb = getSupabase();
+  if (!sb) return { draftCount: 0, vocabCount: 0, error: "Supabase 未啟用" };
+
+  let syncError: string | null = null;
+  let draftCount = 0;
+  let vocabCount = 0;
+
+  const drafts = Object.values(
+    lsRead<Record<string, DraftData>>(DRAFTS_KEY, {}),
+  );
+  if (drafts.length > 0) {
+    const { error } = await sb.from(TABLE_DRAFTS).upsert(
+      drafts.map((d) => ({
+        homework_id: d.homeworkId,
+        fields: d.fields,
+        hand_copied: d.handCopied,
+        updated_at: d.updatedAt,
+      })),
+      { onConflict: "homework_id" },
+    );
+    if (error) syncError = error.message;
+    else draftCount = drafts.length;
+  }
+
+  const vocab = Object.values(
+    lsRead<Record<string, VocabProgressData>>(VOCAB_KEY, {}),
+  );
+  if (vocab.length > 0) {
+    const { error } = await sb.from(TABLE_VOCAB).upsert(
+      vocab.map((v) => ({
+        homework_id: v.homeworkId,
+        mastered_card_ids: v.masteredCardIds,
+        updated_at: v.updatedAt,
+      })),
+      { onConflict: "homework_id" },
+    );
+    if (error) syncError = syncError ?? error.message;
+    else vocabCount = vocab.length;
+  }
+
+  return { draftCount, vocabCount, error: syncError };
+}
+
 export async function saveVocabProgress(
   homeworkId: string,
   masteredCardIds: string[],

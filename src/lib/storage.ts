@@ -179,6 +179,60 @@ export async function saveExplanation(e: ExplanationRecord): Promise<void> {
   lsWriteExplanations(list);
 }
 
+export async function syncLocalToSupabase(): Promise<{
+  progressCount: number;
+  explanationCount: number;
+  error: string | null;
+}> {
+  const sb = getSupabase();
+  if (!sb) return { progressCount: 0, explanationCount: 0, error: "Supabase 未啟用" };
+
+  let syncError: string | null = null;
+  let progressCount = 0;
+  let explanationCount = 0;
+
+  const progressList = Object.values(lsReadProgress());
+  if (progressList.length > 0) {
+    const { error } = await sb.from(TABLE_PROGRESS).upsert(
+      progressList.map((p) => ({
+        unit_id: p.unitId,
+        section_reached: p.sectionReached,
+        completed_at: p.completedAt,
+        variant_results: p.variantResults,
+      })),
+      { onConflict: "unit_id" },
+    );
+    if (error) syncError = error.message;
+    else progressCount = progressList.length;
+  }
+
+  const localExps = lsReadExplanations();
+  if (localExps.length > 0) {
+    const { data: existing } = await sb
+      .from(TABLE_EXPLANATIONS)
+      .select("created_at");
+    const existingTs = new Set(
+      (existing ?? []).map((r: { created_at: string }) => r.created_at),
+    );
+    const newExps = localExps.filter((e) => !existingTs.has(e.createdAt));
+    if (newExps.length > 0) {
+      const { error } = await sb.from(TABLE_EXPLANATIONS).insert(
+        newExps.map((e) => ({
+          unit_id: e.unitId,
+          student_text: e.studentText,
+          self_assessment: e.selfAssessment,
+          ai_feedback: e.aiFeedback,
+          created_at: e.createdAt,
+        })),
+      );
+      if (error) syncError = syncError ?? error.message;
+      else explanationCount = newExps.length;
+    }
+  }
+
+  return { progressCount, explanationCount, error: syncError };
+}
+
 export async function getLatestExplanation(
   unitId: string,
 ): Promise<ExplanationRecord | null> {

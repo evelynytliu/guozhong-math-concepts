@@ -6,10 +6,13 @@ import { units } from "@/content";
 import {
   getAllProgress,
   getLatestExplanation,
+  syncLocalToSupabase,
   type UnitProgress,
   type ExplanationRecord,
 } from "@/lib/storage";
-import { ChevronLeft, CheckCircle2, Circle, AlertCircle } from "lucide-react";
+import { syncHomeworkLocalToSupabase } from "@/lib/homework-storage";
+import { isSupabaseEnabled } from "@/lib/supabase";
+import { ChevronLeft, CheckCircle2, AlertCircle, CloudUpload, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SECTION_NAMES = ["情境引入", "引導推導", "用自己的話說", "變形題驗證", "回扣"];
@@ -20,11 +23,15 @@ const SELF_ASSESSMENT_LABEL: Record<string, { text: string; color: string }> = {
   cant_explain: { text: "講不太出來 🤔",       color: "text-destructive/80" },
 };
 
+type SyncState = "idle" | "syncing" | "done" | "error";
+
 export default function ParentPage() {
   const [rows, setRows] = React.useState<
     { progress: UnitProgress | null; explanation: ExplanationRecord | null }[]
   >([]);
   const [loaded, setLoaded] = React.useState(false);
+  const [syncState, setSyncState] = React.useState<SyncState>("idle");
+  const [syncMsg, setSyncMsg] = React.useState("");
 
   React.useEffect(() => {
     let active = true;
@@ -46,6 +53,37 @@ export default function ParentPage() {
     })();
     return () => { active = false; };
   }, []);
+
+  async function handleSync() {
+    setSyncState("syncing");
+    setSyncMsg("");
+    try {
+      const [math, hw] = await Promise.all([
+        syncLocalToSupabase(),
+        syncHomeworkLocalToSupabase(),
+      ]);
+      const errors = [math.error, hw.error].filter(Boolean);
+      if (errors.length > 0) {
+        setSyncState("error");
+        setSyncMsg(`部分失敗：${errors.join("；")}`);
+      } else {
+        const total =
+          math.progressCount +
+          math.explanationCount +
+          hw.draftCount +
+          hw.vocabCount;
+        setSyncState("done");
+        setSyncMsg(
+          total === 0
+            ? "本機沒有新資料需要上傳"
+            : `已上傳 ${total} 筆資料到雲端`,
+        );
+      }
+    } catch (e) {
+      setSyncState("error");
+      setSyncMsg(String(e));
+    }
+  }
 
   const anyData = rows.some((r) => r.progress !== null || r.explanation !== null);
 
@@ -70,6 +108,59 @@ export default function ParentPage() {
       <div className="mt-4 rounded-xl border border-gentle/40 bg-gentle/10 px-4 py-3 text-sm text-muted-foreground">
         <span className="font-medium text-foreground">注意：</span>
         資料存在孩子使用的裝置裡。如果你現在用的不是孩子平常用來學習的裝置，這裡會是空的。
+      </div>
+
+      {/* 跨裝置同步 */}
+      <div className="mt-4 rounded-xl border bg-card px-5 py-4">
+        <p className="text-sm font-medium">跨裝置同步</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          在孩子使用的裝置上，點「上傳到雲端」把本機資料推上去；之後在任何裝置開啟這頁都看得到。
+        </p>
+        {isSupabaseEnabled ? (
+          <div className="mt-3 flex items-center gap-3">
+            <button
+              onClick={handleSync}
+              disabled={syncState === "syncing"}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                syncState === "syncing"
+                  ? "cursor-not-allowed bg-secondary text-muted-foreground"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90",
+              )}
+            >
+              {syncState === "syncing" ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
+                  上傳中…
+                </>
+              ) : syncState === "done" ? (
+                <>
+                  <CheckCheck className="h-4 w-4" />
+                  再次上傳
+                </>
+              ) : (
+                <>
+                  <CloudUpload className="h-4 w-4" />
+                  上傳本機資料到雲端
+                </>
+              )}
+            </button>
+            {syncMsg && (
+              <span
+                className={cn(
+                  "text-sm",
+                  syncState === "done" ? "text-correct" : "text-destructive",
+                )}
+              >
+                {syncMsg}
+              </span>
+            )}
+          </div>
+        ) : (
+          <p className="mt-2 text-xs text-muted-foreground">
+            雲端同步尚未啟用（需要設定 Supabase 環境變數後重新部署）。
+          </p>
+        )}
       </div>
 
       {!loaded ? (
