@@ -78,6 +78,14 @@ export default function HomePage() {
           也幫你把國中數學的<strong className="text-foreground">概念</strong>打扎實。
           重點都一樣——用自己的話想出來，不是照背、照抄。
         </p>
+        <div className="mt-4">
+          <Link
+            href="/parent"
+            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            家長檢視（查看孩子的學習紀錄）
+          </Link>
+        </div>
       </header>
 
       {/* ── 暑假作業引導 ── */}
