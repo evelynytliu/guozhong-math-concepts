@@ -215,6 +215,111 @@ export const unit03: Unit = {
       "闔上螢幕，用嘴巴跟家人解釋三件事：① 質因數分解在做什麼（拆零件）② 什麼情況要用最大公因數 GCD ③ 什麼情況要用最小公倍數 LCM。能各舉一個生活例子最好。",
     note: "如果講到 GCD/LCM 又開始猶豫，就代表『類型判斷』還沒穩，回第 2 段的 B、C 再看一次對比就好。",
   },
+
+  // ───────────────────────────────────────
+  // 練習區：手感題 + 變形題挑戰題庫
+  // ───────────────────────────────────────
+  practiceZone: {
+    drill: {
+      note: "練短除法、找因數的手感，先把計算練熟",
+      questions: [
+        { id: "d1", question: "把 60 做質因數分解", answer: "60 = 2² × 3 × 5" },
+        { id: "d2", question: "求 12 和 18 的最大公因數 GCD", answer: "6" },
+        { id: "d3", question: "求 4 和 6 的最小公倍數 LCM", answer: "12" },
+        { id: "d4", question: "求 24 和 36 的最大公因數 GCD", answer: "12" },
+        { id: "d5", question: "求 8 和 12 的最小公倍數 LCM", answer: "24" },
+      ],
+    },
+    challenge: {
+      heading: "變形題挑戰",
+      bank: [
+        {
+          id: "c01",
+          question: "求 18 和 24 的最大公因數。",
+          answer: "18 = 2×3²，24 = 2³×3，共同的是 2×3 = 6。GCD = 6。",
+          conceptAspect: "GCD 的基本求法：取兩數共有質因數的「最少次方」相乘。",
+          difficulty: "basic",
+        },
+        {
+          id: "c02",
+          question: "一塊長 24 公分、寬 18 公分的長方形紙，要剪成一樣大的正方形且不浪費，正方形邊長最大幾公分？",
+          answer: "求 24 和 18 的 GCD = 6。最大邊長 6 公分。",
+          conceptAspect: "判斷要用 GCD：「切割、分裝、最大的相同尺寸」是 GCD 的訊號（往下切）。",
+          difficulty: "transfer",
+        },
+        {
+          id: "c03",
+          question: "甲公車每 12 分鐘一班，乙公車每 8 分鐘一班，早上 7 點同時發車，下次同時發車是幾點？",
+          answer: "求 12 和 8 的 LCM = 24。7 點 + 24 分 = 7 點 24 分。",
+          conceptAspect: "判斷要用 LCM：「再次同時、重複循環、最小的共同時間」是 LCM 的訊號（往上疊）。",
+          difficulty: "transfer",
+        },
+        {
+          id: "c04",
+          question: "有 36 顆蘋果和 48 顆橘子，要分成相同的禮盒，每盒蘋果一樣多、橘子也一樣多，最多能分幾盒？",
+          answer: "求 36 和 48 的 GCD = 12。最多 12 盒。",
+          conceptAspect: "GCD 應用（分裝）：要把兩種東西平均分，求「最多幾份」用 GCD。",
+          difficulty: "transfer",
+        },
+        {
+          id: "c05",
+          question: "正方形磁磚要鋪滿長 40、寬 30 的牆，磁磚邊長最大幾公分？需要幾塊？",
+          answer: "邊長 = GCD(40,30) = 10 公分。塊數 = (40÷10)×(30÷10) = 4×3 = 12 塊。",
+          conceptAspect: "GCD 求邊長後還要再算數量，多一個步驟。鋪滿不浪費 → GCD。",
+          difficulty: "synthesis",
+        },
+        {
+          id: "c06",
+          question: "兩條彩帶分別長 45 公分和 60 公分，都剪成一樣長的小段不浪費，每段最長幾公分？共幾段？",
+          answer: "每段長 = GCD(45,60) = 15 公分。段數 = 45÷15 + 60÷15 = 3 + 4 = 7 段。",
+          conceptAspect: "GCD 求最長分段，再算總段數。重點是先判斷「最長相同長度」就是 GCD。",
+          difficulty: "synthesis",
+        },
+        {
+          id: "c07",
+          question: "燈 A 每 6 秒閃一次，燈 B 每 10 秒閃一次，剛剛同時閃過，下次同時閃是幾秒後？",
+          answer: "求 LCM(6,10) = 30。30 秒後。",
+          conceptAspect: "LCM 應用（再次同時）：兩個循環事件何時重合，求 LCM。",
+          difficulty: "transfer",
+        },
+        {
+          id: "c08",
+          question: "這題該用 GCD 還是 LCM？「把兩串珠子（15 顆、20 顆）分成相同的小串，每串最多幾顆？」先判斷，再算。",
+          answer: "用 GCD（分裝、最大相同尺寸）。GCD(15,20) = 5。每串最多 5 顆。",
+          conceptAspect: "核心判斷題：先分辨情境是「往下切（GCD）」還是「往上疊（LCM）」，再動手算。",
+          difficulty: "synthesis",
+        },
+        {
+          id: "c09",
+          question: "這題該用 GCD 還是 LCM？「兩個齒輪，一個 8 齒、一個 12 齒，要轉到第一次回到原本咬合位置，大齒輪轉幾圈？」",
+          answer: "用 LCM（再次重合）。LCM(8,12) = 24 齒。大齒輪(12齒)轉 24÷12 = 2 圈。",
+          conceptAspect: "判斷用 LCM（回到原位＝重合），再回推圈數。容易誤判成 GCD。",
+          difficulty: "synthesis",
+        },
+        {
+          id: "c10",
+          question: "做蛋糕，每盒裝 6 個剛好裝完，每盒裝 8 個也剛好裝完，蛋糕至少幾個？",
+          answer: "求 LCM(6,8) = 24。至少 24 個。",
+          conceptAspect: "LCM 應用（兩種分法都剛好＝共同倍數，最少＝最小公倍數）。",
+          difficulty: "transfer",
+        },
+        {
+          id: "c11",
+          question: "求 16、24、40 三個數的最大公因數。",
+          answer: "16 = 2⁴，24 = 2³×3，40 = 2³×5，共有 2³ = 8。GCD = 8。",
+          conceptAspect: "三個數的 GCD：取「三個都有」的質因數最少次方。比兩個數多一層判斷。",
+          difficulty: "synthesis",
+        },
+        {
+          id: "c12",
+          question: "求 4、6、9 三個數的最小公倍數。",
+          answer: "4 = 2²，6 = 2×3，9 = 3²。取各質因數最高次方：2²×3² = 36。LCM = 36。",
+          conceptAspect: "三個數的 LCM：取「出現過」的質因數最高次方相乘，不要只看兩兩之間。",
+          difficulty: "synthesis",
+        },
+      ],
+    },
+  },
 };
 
 export default unit03;

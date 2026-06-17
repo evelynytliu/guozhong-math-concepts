@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Check } from "lucide-react";
+import { Check, Dumbbell } from "lucide-react";
 
 export const SECTION_LABELS = [
   "情境引入",
@@ -12,28 +12,35 @@ export const SECTION_LABELS = [
 ];
 
 interface ProgressStepperProps {
-  current: number; // 目前第幾段（1-5）
-  reached: number; // 最遠到過第幾段（已解鎖）
-  onJump?: (section: number) => void; // 點已解鎖的段可跳轉
+  current: number; // 目前第幾段（1-5，或 6 代表練習區）
+  reached: number; // 最遠到過第幾段
+  onJump?: (section: number) => void;
+  hasPractice?: boolean; // 這個單元有練習區
 }
 
 export function ProgressStepper({
   current,
   reached,
   onJump,
+  hasPractice,
 }: ProgressStepperProps) {
+  const labels = hasPractice ? [...SECTION_LABELS, "練習"] : SECTION_LABELS;
+  const total = labels.length;
+
   return (
     <nav aria-label="學習進度" className="w-full">
       <ol className="flex items-center">
-        {SECTION_LABELS.map((label, i) => {
+        {labels.map((label, i) => {
           const n = i + 1;
+          const isPractice = hasPractice && n === total;
           const isDone = n < current;
           const isCurrent = n === current;
-          const unlocked = n <= reached;
+          // 練習區在到達第 5 段後才解鎖
+          const unlocked = isPractice ? reached >= 5 : n <= reached;
           return (
             <li
               key={n}
-              className={cn("flex items-center", i < 4 && "flex-1")}
+              className={cn("flex items-center", i < total - 1 && "flex-1")}
             >
               <button
                 type="button"
@@ -56,7 +63,13 @@ export function ProgressStepper({
                       "border-border bg-card text-muted-foreground",
                   )}
                 >
-                  {isDone ? <Check className="h-4 w-4" /> : n}
+                  {isDone ? (
+                    <Check className="h-4 w-4" />
+                  ) : isPractice ? (
+                    <Dumbbell className="h-4 w-4" />
+                  ) : (
+                    n
+                  )}
                 </span>
                 <span
                   className={cn(
@@ -69,7 +82,7 @@ export function ProgressStepper({
                   {label}
                 </span>
               </button>
-              {i < 4 && (
+              {i < total - 1 && (
                 <span
                   className={cn(
                     "mx-1 h-0.5 flex-1 rounded-full transition-colors sm:mx-2",

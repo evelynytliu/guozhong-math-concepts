@@ -258,6 +258,111 @@ export const unit05: Unit = {
       "現在闔上螢幕，找家人（或對著鏡子），用嘴巴解釋這三件事：① 為什麼解方程式時左邊做什麼、右邊就要做一樣的事 ② 課本說的『移項變號』其實是在做哪件事 ③ 如果未知數跑到右邊、或式子裡有括號，你會怎麼下手。講得出來，這個單元才算真的過關。",
     note: "講不順也沒關係，講不順就代表那個地方還在背，回去那一段再看一次就好。特別是『移項＝兩邊同加減的縮寫』這句，能自己講清楚，就贏一半了。",
   },
+
+  // ───────────────────────────────────────
+  // 練習區：手感題 + 變形題挑戰題庫
+  // ───────────────────────────────────────
+  practiceZone: {
+    drill: {
+      note: "解方程式換數字，把天平兩邊一起做的手感練順",
+      questions: [
+        { id: "d1", question: "解：x + 7 = 13", answer: "x = 6" },
+        { id: "d2", question: "解：x - 5 = 9", answer: "x = 14" },
+        { id: "d3", question: "解：4x = 28", answer: "x = 7" },
+        { id: "d4", question: "解：3x + 2 = 20", answer: "x = 6" },
+        { id: "d5", question: "解：2x + 3 = x + 10", answer: "x = 7" },
+      ],
+    },
+    challenge: {
+      heading: "變形題挑戰",
+      bank: [
+        {
+          id: "c01",
+          question: "解方程式：x + 9 = 16，並說出你對天平兩邊各做了什麼。",
+          answer: "兩邊同減 9：x = 7。天平左右各拿掉 9 公克，保持平衡。",
+          conceptAspect: "最基本的等量公理：兩邊同減一個數，等號（平衡）不變。",
+          difficulty: "basic",
+        },
+        {
+          id: "c02",
+          question: "解方程式：5x = 35。你是對天平兩邊做了什麼？",
+          answer: "兩邊同除以 5：x = 7。把天平兩邊各分成 5 等份，取其中一份。",
+          conceptAspect: "等量公理的『除法版』：『係數除過去』其實是兩邊同除以同一個數。",
+          difficulty: "basic",
+        },
+        {
+          id: "c03",
+          question: "解方程式：3x - 4 = 11（先說該先消去哪一邊的什麼）",
+          answer: "先兩邊同加 4 → 3x = 15，再兩邊同除 3 → x = 5。",
+          conceptAspect: "兩步驟：先用加法還原常數，再用除法還原係數。順序是加減先、乘除後。",
+          difficulty: "transfer",
+        },
+        {
+          id: "c04",
+          question: "解方程式：20 = 4x（未知數跑到右邊）",
+          answer: "兩邊同除 4：5 = x，也就是 x = 5。未知數在哪邊都一樣，天平兩邊做一樣的事。",
+          conceptAspect: "破解『反射套步驟』：未知數在右邊照樣解，等量公理跟左右位置無關。",
+          difficulty: "transfer",
+        },
+        {
+          id: "c05",
+          question: "解方程式：6x - 5 = 2x + 11（未知數在兩邊）",
+          answer: "兩邊同減 2x → 4x - 5 = 11；同加 5 → 4x = 16；同除 4 → x = 4。",
+          conceptAspect: "兩邊都有未知數：先把 x 收到同一邊（兩邊同減 2x），再解。仍是兩邊做一樣的事。",
+          difficulty: "synthesis",
+        },
+        {
+          id: "c06",
+          question: "解方程式：2(x + 3) = 14（有括號）",
+          answer: "先展開 2x + 6 = 14，或兩邊同除 2 得 x + 3 = 7。兩種都對，x = 4。",
+          conceptAspect: "有括號的兩種下手法：先乘開、或先兩邊同除。看出可以同除是對等量公理的活用。",
+          difficulty: "synthesis",
+        },
+        {
+          id: "c07",
+          question: "解方程式：x/3 + 2 = 6（未知數被除）",
+          answer: "兩邊同減 2 → x/3 = 4；兩邊同乘 3 → x = 12。",
+          conceptAspect: "分數係數：用『兩邊同乘』還原被除的未知數，是等量公理的乘法版。",
+          difficulty: "transfer",
+        },
+        {
+          id: "c08",
+          question: "小明解 3x + 5 = 20 時寫成 3x = 20 + 5 = 25。哪裡錯了？正確答案是？",
+          answer: "錯在移項沒變號。+5 移到右邊應該變 -5：3x = 20 - 5 = 15，x = 5。本質是『兩邊同減 5』，不是同加。",
+          conceptAspect: "抓移項變號的錯誤：用『兩邊做一樣的事』檢查，就知道該減不是加。",
+          difficulty: "synthesis",
+        },
+        {
+          id: "c09",
+          question: "解方程式：4x + 3 = 2x + 3（觀察一下再動手）",
+          answer: "兩邊同減 2x → 2x + 3 = 3；同減 3 → 2x = 0；x = 0。",
+          conceptAspect: "答案是 0 也是合法解，不要因為『x = 0 看起來怪』就以為算錯。",
+          difficulty: "synthesis",
+        },
+        {
+          id: "c10",
+          question: "解方程式：5 - 2x = 1（未知數前面是負號）",
+          answer: "兩邊同減 5 → -2x = -4；兩邊同除 -2 → x = 2。",
+          conceptAspect: "係數是負數：除以負數時要小心正負號，仍是兩邊同除同一個數。",
+          difficulty: "synthesis",
+        },
+        {
+          id: "c11",
+          question: "解方程式：3(x - 2) = 2(x + 1)（兩邊都有括號）",
+          answer: "展開：3x - 6 = 2x + 2；兩邊同減 2x → x - 6 = 2；同加 6 → x = 8。",
+          conceptAspect: "兩邊括號：先各自乘開，再用等量公理收未知數。多步驟綜合。",
+          difficulty: "synthesis",
+        },
+        {
+          id: "c12",
+          question: "解方程式：7 + x = 3（答案會是負數）",
+          answer: "兩邊同減 7 → x = 3 - 7 = -4。",
+          conceptAspect: "解出負數解：等量公理對負數一樣成立，不要因為答案是負的就懷疑。",
+          difficulty: "transfer",
+        },
+      ],
+    },
+  },
 };
 
 export default unit05;

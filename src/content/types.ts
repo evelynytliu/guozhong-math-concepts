@@ -64,12 +64,43 @@ export interface VariantQuestion {
   numberLine?: NumberLineConfig;
 }
 
+// 練習區：接在五段式流程後面，分「手感題」和「變形題挑戰」兩塊。
+// 手感題：換數字的純計算，練熟練度用，明確標示「只是練手感」。
+// 變形題挑戰：題庫 10-12 題，每次隨機抽 5 題，同概念不同情境/問法。
+
+export interface DrillQuestion {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+export interface ChallengeQuestion {
+  id: string;
+  question: string;
+  answer: string;
+  // 作答後顯示：這題其實在考概念的哪個面向
+  conceptAspect: string;
+  difficulty: "basic" | "transfer" | "synthesis";
+}
+
+export interface PracticeZone {
+  drill: {
+    note: string;
+    questions: DrillQuestion[];
+  };
+  challenge: {
+    heading: string;
+    bank: ChallengeQuestion[];
+  };
+}
+
 export interface Unit {
   id: string;
   title: string;
   order: number;
   checkMode: CheckMode;
   summary: string;
+  practiceZone?: PracticeZone;
 
   // 第 1 段：情境引入
   section1_intro: {
