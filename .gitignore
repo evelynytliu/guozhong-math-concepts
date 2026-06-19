@@ -26,3 +26,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# claude code agent worktrees (temporary, not for version control)
+.claude/worktrees/
