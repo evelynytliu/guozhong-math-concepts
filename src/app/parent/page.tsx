@@ -11,6 +11,13 @@ import {
   type ExplanationRecord,
 } from "@/lib/storage";
 import { syncHomeworkLocalToSupabase } from "@/lib/homework-storage";
+import {
+  getAllPracticeData,
+  type UnitPracticeData,
+  type ChallengeSession,
+  type DrillEntry,
+} from "@/lib/practice-storage";
+import type { DrillQuestion } from "@/content/types";
 import { isSupabaseEnabled } from "@/lib/supabase";
 import { ChevronLeft, CheckCircle2, AlertCircle, CloudUpload, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +36,9 @@ export default function ParentPage() {
   const [rows, setRows] = React.useState<
     { progress: UnitProgress | null; explanation: ExplanationRecord | null }[]
   >([]);
+  const [practiceData, setPracticeData] = React.useState<
+    Record<string, UnitPracticeData>
+  >({});
   const [loaded, setLoaded] = React.useState(false);
   const [syncState, setSyncState] = React.useState<SyncState>("idle");
   const [syncMsg, setSyncMsg] = React.useState("");
@@ -48,6 +58,7 @@ export default function ParentPage() {
       );
       if (active) {
         setRows(result);
+        setPracticeData(getAllPracticeData());
         setLoaded(true);
       }
     })();
@@ -85,7 +96,9 @@ export default function ParentPage() {
     }
   }
 
-  const anyData = rows.some((r) => r.progress !== null || r.explanation !== null);
+  const anyData =
+    rows.some((r) => r.progress !== null || r.explanation !== null) ||
+    Object.keys(practiceData).length > 0;
 
   return (
     <div className="flex flex-1 flex-col py-8">
@@ -176,13 +189,15 @@ export default function ParentPage() {
         <div className="mt-6 space-y-6">
           {units.map((unit, i) => {
             const { progress, explanation } = rows[i] ?? {};
-            if (!progress && !explanation) return null;
+            const pd = practiceData[unit.id];
+            if (!progress && !explanation && !pd) return null;
             return (
               <UnitCard
                 key={unit.id}
                 unit={unit}
                 progress={progress ?? null}
                 explanation={explanation ?? null}
+                practice={pd ?? null}
               />
             );
           })}
@@ -196,16 +211,25 @@ function UnitCard({
   unit,
   progress,
   explanation,
+  practice,
 }: {
   unit: (typeof units)[number];
   progress: UnitProgress | null;
   explanation: ExplanationRecord | null;
+  practice: UnitPracticeData | null;
 }) {
   const reached = progress?.sectionReached ?? 0;
   const completed = Boolean(progress?.completedAt);
   const variantResults = progress?.variantResults ?? {};
   const variantQs = unit.section4_variants.questions;
   const hasVariants = Object.keys(variantResults).length > 0;
+
+  const drillQuestions = unit.practiceZone?.drill.questions ?? [];
+  const revealedDrills = drillQuestions.filter(
+    (q) => practice?.drill[q.id]?.revealed,
+  );
+  const latestSession = practice?.sessions?.[0] ?? null;
+  const hasPractice = revealedDrills.length > 0 || latestSession !== null;
 
   return (
     <div className="rounded-xl border bg-card">
@@ -243,6 +267,16 @@ function UnitCard({
         {/* 變形題結果（第 4 段） */}
         {hasVariants && (
           <VariantResultBlock questions={variantQs} results={variantResults} />
+        )}
+
+        {/* 練習區記錄 */}
+        {hasPractice && (
+          <PracticeBlock
+            drillQuestions={drillQuestions}
+            drillData={practice?.drill ?? {}}
+            revealedDrills={revealedDrills}
+            latestSession={latestSession}
+          />
         )}
       </div>
     </div>
@@ -437,6 +471,149 @@ function VariantResultBlock({
         }
         return null;
       })()}
+    </div>
+  );
+}
+
+// ─── 練習區記錄（家長視角） ─────────────────────────────────────────────────
+
+const DIFF_LABEL: Record<string, string> = {
+  basic: "直接",
+  transfer: "換情境",
+  synthesis: "多一個轉折",
+};
+
+function PracticeBlock({
+  drillQuestions,
+  drillData,
+  revealedDrills,
+  latestSession,
+}: {
+  drillQuestions: DrillQuestion[];
+  drillData: Record<string, DrillEntry>;
+  revealedDrills: DrillQuestion[];
+  latestSession: ChallengeSession | null;
+}) {
+  return (
+    <div className="space-y-4">
+      <p className="text-xs font-medium text-muted-foreground">練習區紀錄</p>
+
+      {/* 手感題 */}
+      {revealedDrills.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">手感題（已作答）</p>
+          <div className="overflow-hidden rounded-lg border text-sm">
+            <table className="w-full">
+              <thead className="bg-muted/40">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">題目</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">孩子的答案</th>
+                  <th className="px-3 py-2 text-left font-medium text-muted-foreground">正確答案</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {revealedDrills.map((q) => {
+                  const entry = drillData[q.id];
+                  const correct = q.answer;
+                  const studentAns = entry?.answer ?? "";
+                  const match =
+                    studentAns.trim() === correct.trim();
+                  return (
+                    <tr key={q.id}>
+                      <td className="px-3 py-2 text-muted-foreground">{q.question}</td>
+                      <td className={cn("px-3 py-2 font-mono", match ? "text-correct" : "text-gentle-foreground")}>
+                        {studentAns || <span className="italic text-muted-foreground">（空白）</span>}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-foreground">{correct}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* 最近一次變形題挑戰 */}
+      {latestSession && (
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <p className="text-xs text-muted-foreground">最近一次變形題挑戰</p>
+            <span className="text-xs font-medium">
+              答對{" "}
+              {latestSession.results.filter((r) => r.mark === "correct").length}{" "}
+              / {latestSession.results.length} 題
+            </span>
+          </div>
+          <div className="space-y-2">
+            {latestSession.results.map((r, i) => {
+              const isCorrect = r.mark === "correct";
+              return (
+                <div
+                  key={r.questionId}
+                  className={cn(
+                    "rounded-lg border px-4 py-3 text-sm",
+                    isCorrect
+                      ? "border-correct/30 bg-correct/5"
+                      : r.mark === "wrong"
+                        ? "border-gentle/30 bg-gentle/5"
+                        : "border-border bg-card",
+                  )}
+                >
+                  <div className="flex items-start gap-2">
+                    {isCorrect ? (
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-correct" />
+                    ) : r.mark === "wrong" ? (
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-gentle-foreground" />
+                    ) : (
+                      <span className="mt-0.5 h-4 w-4 shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="leading-snug">
+                        <span className="font-medium">
+                          第 {i + 1} 題
+                          <span className="ml-1 rounded-full bg-secondary px-1.5 py-0.5 text-xs text-muted-foreground">
+                            {DIFF_LABEL[r.difficulty] ?? r.difficulty}
+                          </span>
+                          ：
+                        </span>
+                        {r.question}
+                      </p>
+                      {r.studentAnswer && (
+                        <p className="text-muted-foreground">
+                          孩子寫的：
+                          <span className="font-mono">{r.studentAnswer}</span>
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        這題在考：{r.conceptAspect}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 弱點診斷：全錯 transfer+synthesis 題 */}
+          {(() => {
+            const wrong = latestSession.results.filter(
+              (r) => r.mark === "wrong" && r.difficulty !== "basic",
+            );
+            if (wrong.length >= 2) {
+              return (
+                <div className="rounded-lg border border-gentle/40 bg-gentle/10 px-4 py-3 text-sm">
+                  <p className="font-medium">📌 換情境就卡住了</p>
+                  <p className="mt-0.5 text-muted-foreground">
+                    換情境或多一個轉折的題目答錯 {wrong.length} 題——概念可能還停在「認得這個題型」，還沒真正遷移。建議讓孩子再回到第 2 段重新走推導。
+                  </p>
+                </div>
+              );
+            }
+            return null;
+          })()}
+        </div>
+      )}
     </div>
   );
 }
