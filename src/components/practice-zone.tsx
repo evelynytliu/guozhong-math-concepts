@@ -7,6 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Dumbbell, Shuffle, Target } from "lucide-react";
+import {
+  getPracticeData,
+  saveDrillEntry,
+  saveChallengeSession,
+  type ChallengeQuestionResult,
+} from "@/lib/practice-storage";
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -33,8 +39,9 @@ export function PracticeZone({ unit }: { unit: Unit }) {
         </div>
       </header>
 
-      <DrillSection questions={pz.drill.questions} note={pz.drill.note} />
+      <DrillSection unitId={unit.id} questions={pz.drill.questions} note={pz.drill.note} />
       <ChallengeSection
+        unitId={unit.id}
         heading={pz.challenge.heading}
         bank={pz.challenge.bank}
       />
@@ -42,15 +49,19 @@ export function PracticeZone({ unit }: { unit: Unit }) {
   );
 }
 
-// ─── 手感題區 ───────────────────────────────────────────────────────────────
+// ─── 手感題 ─────────────────────────────────────────────────────────────────
 
 function DrillSection({
+  unitId,
   questions,
   note,
 }: {
+  unitId: string;
   questions: DrillQuestion[];
   note: string;
 }) {
+  const [savedDrill] = React.useState(() => getPracticeData(unitId).drill);
+
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -61,16 +72,44 @@ function DrillSection({
       </div>
       <div className="space-y-3">
         {questions.map((q, i) => (
-          <DrillCard key={q.id} q={q} index={i} />
+          <DrillCard
+            key={q.id}
+            q={q}
+            index={i}
+            unitId={unitId}
+            initialAnswer={savedDrill[q.id]?.answer ?? ""}
+            initialRevealed={savedDrill[q.id]?.revealed ?? false}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function DrillCard({ q, index }: { q: DrillQuestion; index: number }) {
-  const [answer, setAnswer] = React.useState("");
-  const [revealed, setRevealed] = React.useState(false);
+function DrillCard({
+  q,
+  index,
+  unitId,
+  initialAnswer,
+  initialRevealed,
+}: {
+  q: DrillQuestion;
+  index: number;
+  unitId: string;
+  initialAnswer: string;
+  initialRevealed: boolean;
+}) {
+  const [answer, setAnswer] = React.useState(initialAnswer);
+  const [revealed, setRevealed] = React.useState(initialRevealed);
+
+  function handleReveal() {
+    setRevealed(true);
+    saveDrillEntry(unitId, q.id, {
+      answer,
+      revealed: true,
+      updatedAt: new Date().toISOString(),
+    });
+  }
 
   return (
     <div className="rounded-xl border bg-card p-4">
@@ -93,7 +132,7 @@ function DrillCard({ q, index }: { q: DrillQuestion; index: number }) {
             variant="outline"
             size="sm"
             disabled={answer.trim().length === 0}
-            onClick={() => setRevealed(true)}
+            onClick={handleReveal}
           >
             看答案
           </Button>
@@ -107,7 +146,7 @@ function DrillCard({ q, index }: { q: DrillQuestion; index: number }) {
   );
 }
 
-// ─── 變形題挑戰區 ────────────────────────────────────────────────────────────
+// ─── 變形題挑戰 ──────────────────────────────────────────────────────────────
 
 const SAMPLE_SIZE = 5;
 
@@ -126,9 +165,11 @@ const DIFFICULTY_CLASS: Record<ChallengeQuestion["difficulty"], string> = {
 type Mark = "correct" | "wrong";
 
 function ChallengeSection({
+  unitId,
   heading,
   bank,
 }: {
+  unitId: string;
   heading: string;
   bank: ChallengeQuestion[];
 }) {
@@ -137,17 +178,43 @@ function ChallengeSection({
   );
   const [sampleKey, setSampleKey] = React.useState(0);
   const [marks, setMarks] = React.useState<Record<string, Mark>>({});
+  const [answers, setAnswers] = React.useState<Record<string, string>>({});
+  const [revealed, setRevealed] = React.useState<Set<string>>(new Set());
+  const savedSessions = React.useRef<Set<number>>(new Set());
+
+  const allMarked =
+    samples.length > 0 && samples.every((q) => marks[q.id] !== undefined);
+  const correctCount = allMarked
+    ? samples.filter((q) => marks[q.id] === "correct").length
+    : 0;
+
+  React.useEffect(() => {
+    if (!allMarked) return;
+    if (savedSessions.current.has(sampleKey)) return;
+    savedSessions.current.add(sampleKey);
+
+    const results: ChallengeQuestionResult[] = samples.map((q) => ({
+      questionId: q.id,
+      question: q.question,
+      studentAnswer: answers[q.id] ?? "",
+      mark: marks[q.id] ?? null,
+      conceptAspect: q.conceptAspect,
+      difficulty: q.difficulty,
+    }));
+    saveChallengeSession(unitId, {
+      sessionId: `${unitId}-${Date.now()}`,
+      results,
+      savedAt: new Date().toISOString(),
+    });
+  }, [allMarked, sampleKey, samples, marks, answers, unitId]);
 
   function resample() {
     setSamples(shuffle(bank).slice(0, SAMPLE_SIZE));
     setSampleKey((k) => k + 1);
     setMarks({});
+    setAnswers({});
+    setRevealed(new Set());
   }
-
-  const allMarked = samples.length > 0 && samples.every((q) => marks[q.id]);
-  const correctCount = allMarked
-    ? samples.filter((q) => marks[q.id] === "correct").length
-    : 0;
 
   return (
     <section className="space-y-4">
@@ -171,6 +238,14 @@ function ChallengeSection({
             q={q}
             index={i}
             mark={marks[q.id]}
+            isRevealed={revealed.has(q.id)}
+            answer={answers[q.id] ?? ""}
+            onAnswerChange={(val) =>
+              setAnswers((prev) => ({ ...prev, [q.id]: val }))
+            }
+            onReveal={() =>
+              setRevealed((prev) => new Set([...prev, q.id]))
+            }
             onMark={(m) => setMarks((prev) => ({ ...prev, [q.id]: m }))}
           />
         ))}
@@ -195,7 +270,12 @@ function ChallengeSection({
               ? "換一組再試試，看能不能連續拿下不同情境的題目。"
               : "答錯的題目，對照「這題在考什麼」再想一次。想清楚後換一組繼續練。"}
           </p>
-          <Button variant="outline" size="sm" onClick={resample} className="mt-3 gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={resample}
+            className="mt-3 gap-1.5"
+          >
             <Shuffle className="h-3.5 w-3.5" />
             再來一組
           </Button>
@@ -209,15 +289,21 @@ function ChallengeCard({
   q,
   index,
   mark,
+  isRevealed,
+  answer,
+  onAnswerChange,
+  onReveal,
   onMark,
 }: {
   q: ChallengeQuestion;
   index: number;
   mark?: Mark;
+  isRevealed: boolean;
+  answer: string;
+  onAnswerChange: (val: string) => void;
+  onReveal: () => void;
   onMark: (m: Mark) => void;
 }) {
-  const [answer, setAnswer] = React.useState("");
-  const [revealed, setRevealed] = React.useState(false);
   const isLong = q.question.length > 60;
 
   return (
@@ -242,26 +328,26 @@ function ChallengeCard({
         {isLong ? (
           <Textarea
             value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
+            onChange={(e) => onAnswerChange(e.target.value)}
             placeholder="把你的答案和理由寫出來…"
-            disabled={revealed}
+            disabled={isRevealed}
           />
         ) : (
           <Input
             value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
+            onChange={(e) => onAnswerChange(e.target.value)}
             placeholder="寫下你的答案…"
-            disabled={revealed}
+            disabled={isRevealed}
           />
         )}
       </div>
 
-      {!revealed ? (
+      {!isRevealed ? (
         <Button
           variant="outline"
           className="mt-3"
           disabled={answer.trim().length === 0}
-          onClick={() => setRevealed(true)}
+          onClick={onReveal}
         >
           看參考答案 + 這題在考什麼
         </Button>
