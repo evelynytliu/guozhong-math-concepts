@@ -12,9 +12,20 @@ import {
   type DraftData,
   type VocabProgressData,
 } from "@/lib/homework-storage";
+import {
+  getAllPracticeData,
+  summarizePractice,
+  type UnitPracticeData,
+} from "@/lib/practice-storage";
 import { SECTION_LABELS } from "@/components/progress-stepper";
 import { cn } from "@/lib/utils";
-import { ArrowRight, CheckCircle2, Repeat, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Dumbbell,
+  Repeat,
+  Sparkles,
+} from "lucide-react";
 
 export default function HomePage() {
   const [progress, setProgress] = React.useState<Record<string, UnitProgress>>(
@@ -24,6 +35,9 @@ export default function HomePage() {
   const [vocab, setVocab] = React.useState<Record<string, VocabProgressData>>(
     {},
   );
+  const [practice, setPractice] = React.useState<
+    Record<string, UnitPracticeData>
+  >({});
   const [loaded, setLoaded] = React.useState(false);
 
   React.useEffect(() => {
@@ -38,6 +52,7 @@ export default function HomePage() {
       setProgress(map);
       setDrafts(d);
       setVocab(v);
+      setPractice(getAllPracticeData());
       setLoaded(true);
     })();
   }, []);
@@ -198,6 +213,10 @@ export default function HomePage() {
             const reached = p?.sectionReached ?? 0;
             const done = Boolean(p?.completedAt);
             const started = reached > 0;
+            const ps = summarizePractice(
+              practice[unit.id],
+              unit.practiceZone?.drill.questions.length ?? 0,
+            );
             return (
               <Link
                 key={unit.id}
@@ -250,6 +269,39 @@ export default function HomePage() {
                         style={{ width: `${(reached / 5) * 100}%` }}
                       />
                     </div>
+                  </div>
+                )}
+
+                {/* 練習區紀錄：做過沒、做了幾次 */}
+                {loaded && unit.practiceZone && (
+                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-3">
+                    <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                      <Dumbbell className="h-3.5 w-3.5" />
+                      練習區
+                    </span>
+                    {ps.practiced ? (
+                      <>
+                        {ps.challengeRounds > 0 && (
+                          <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+                            變形題挑戰 {ps.challengeRounds} 回
+                          </span>
+                        )}
+                        {ps.bestTotal > 0 && (
+                          <span className="rounded-full bg-correct/15 px-2 py-0.5 text-xs font-medium text-correct">
+                            最佳 {ps.bestCorrect}/{ps.bestTotal}
+                          </span>
+                        )}
+                        {ps.drillDone > 0 && (
+                          <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+                            手感題 {ps.drillDone}/{ps.drillTotal}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        還沒開始
+                      </span>
+                    )}
                   </div>
                 )}
               </Link>

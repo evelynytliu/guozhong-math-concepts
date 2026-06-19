@@ -13,7 +13,9 @@ import {
 import { syncHomeworkLocalToSupabase } from "@/lib/homework-storage";
 import {
   getAllPracticeData,
+  summarizePractice,
   type UnitPracticeData,
+  type PracticeSummary,
   type ChallengeSession,
   type DrillEntry,
 } from "@/lib/practice-storage";
@@ -228,8 +230,13 @@ function UnitCard({
   const revealedDrills = drillQuestions.filter(
     (q) => practice?.drill[q.id]?.revealed,
   );
-  const latestSession = practice?.sessions?.[0] ?? null;
-  const hasPractice = revealedDrills.length > 0 || latestSession !== null;
+  const sessions = practice?.sessions ?? [];
+  const latestSession = sessions[0] ?? null;
+  const practiceSummary = summarizePractice(
+    practice ?? undefined,
+    drillQuestions.length,
+  );
+  const hasPractice = practiceSummary.practiced;
 
   return (
     <div className="rounded-xl border bg-card">
@@ -272,6 +279,8 @@ function UnitCard({
         {/* 練習區記錄 */}
         {hasPractice && (
           <PracticeBlock
+            summary={practiceSummary}
+            sessions={sessions}
             drillQuestions={drillQuestions}
             drillData={practice?.drill ?? {}}
             revealedDrills={revealedDrills}
@@ -484,11 +493,15 @@ const DIFF_LABEL: Record<string, string> = {
 };
 
 function PracticeBlock({
+  summary,
+  sessions,
   drillQuestions,
   drillData,
   revealedDrills,
   latestSession,
 }: {
+  summary: PracticeSummary;
+  sessions: ChallengeSession[];
   drillQuestions: DrillQuestion[];
   drillData: Record<string, DrillEntry>;
   revealedDrills: DrillQuestion[];
@@ -497,6 +510,59 @@ function PracticeBlock({
   return (
     <div className="space-y-4">
       <p className="text-xs font-medium text-muted-foreground">練習區紀錄</p>
+
+      {/* 總覽：做了幾回、最佳成績、手感題進度 */}
+      <div className="flex flex-wrap items-center gap-2">
+        {summary.challengeRounds > 0 && (
+          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-foreground">
+            變形題挑戰 {summary.challengeRounds} 回
+          </span>
+        )}
+        {summary.bestTotal > 0 && (
+          <span className="rounded-full bg-correct/15 px-2.5 py-1 text-xs font-medium text-correct">
+            最佳 {summary.bestCorrect}/{summary.bestTotal}
+          </span>
+        )}
+        {summary.drillTotal > 0 && (
+          <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-foreground">
+            手感題 {summary.drillDone}/{summary.drillTotal}
+          </span>
+        )}
+      </div>
+
+      {/* 最近幾次成績走勢 */}
+      {sessions.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs text-muted-foreground">
+            最近{sessions.length}次成績
+            {summary.challengeRounds > sessions.length && (
+              <span>（共做 {summary.challengeRounds} 回，只留最近 {sessions.length} 次）</span>
+            )}
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {sessions.map((s, i) => {
+              const correct = s.results.filter((r) => r.mark === "correct").length;
+              const total = s.results.length;
+              const full = total > 0 && correct === total;
+              return (
+                <span
+                  key={s.sessionId ?? i}
+                  className={cn(
+                    "rounded-md px-2 py-0.5 text-xs font-medium",
+                    i === 0 && "ring-1 ring-primary/40",
+                    full
+                      ? "bg-correct/15 text-correct"
+                      : "bg-gentle/15 text-gentle-foreground",
+                  )}
+                  title={i === 0 ? "最近一次" : `第 ${sessions.length - i} 新`}
+                >
+                  {correct}/{total}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 手感題 */}
       {revealedDrills.length > 0 && (

@@ -27,6 +27,9 @@ export interface ChallengeSession {
 export interface UnitPracticeData {
   drill: Record<string, DrillEntry>;
   sessions: ChallengeSession[];
+  // 累計做過幾組變形題挑戰。sessions 只保留最近 MAX_SESSIONS 組，
+  // 這個數字不會被截斷，用來如實顯示「做了幾次」。舊資料沒有這欄時退回 sessions.length。
+  challengeRounds?: number;
 }
 
 type Store = Record<string, UnitPracticeData>;
@@ -78,7 +81,51 @@ export function saveChallengeSession(
 ): void {
   const store = lsRead();
   const unit = getUnit(unitId, store);
+  const priorRounds = unit.challengeRounds ?? unit.sessions.length;
   unit.sessions = [session, ...unit.sessions].slice(0, MAX_SESSIONS);
+  unit.challengeRounds = priorRounds + 1;
   store[unitId] = unit;
   lsWrite(store);
+}
+
+// ─── 摘要（給首頁卡片顯示「練習過沒、做了幾次」用） ──────────────────────────
+
+export interface PracticeSummary {
+  practiced: boolean; // 有沒有做過任何練習（手感題或變形題挑戰）
+  challengeRounds: number; // 變形題挑戰做過幾組（累計，不受保留上限影響）
+  bestCorrect: number; // 各組中答對最多的一次
+  bestTotal: number; // 那一組的總題數
+  drillDone: number; // 手感題已作答（看過答案）的題數
+  drillTotal: number; // 手感題總題數
+}
+
+export function summarizePractice(
+  data: UnitPracticeData | undefined,
+  drillTotal: number,
+): PracticeSummary {
+  const sessions = data?.sessions ?? [];
+  const drillDone = Object.values(data?.drill ?? {}).filter(
+    (d) => d.revealed,
+  ).length;
+
+  let bestCorrect = 0;
+  let bestTotal = 0;
+  for (const s of sessions) {
+    const correct = s.results.filter((r) => r.mark === "correct").length;
+    if (correct >= bestCorrect) {
+      bestCorrect = correct;
+      bestTotal = s.results.length;
+    }
+  }
+
+  const challengeRounds = data?.challengeRounds ?? sessions.length;
+
+  return {
+    practiced: drillDone > 0 || challengeRounds > 0,
+    challengeRounds,
+    bestCorrect,
+    bestTotal,
+    drillDone,
+    drillTotal,
+  };
 }
