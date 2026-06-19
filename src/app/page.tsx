@@ -23,6 +23,7 @@ import {
   ArrowRight,
   CheckCircle2,
   Dumbbell,
+  GraduationCap,
   Repeat,
   Sparkles,
 } from "lucide-react";
@@ -187,6 +188,27 @@ export default function HomePage() {
         <h2 className="mb-3 text-lg font-bold tracking-tight">
           🧮 數學・概念理解（國中先修）
         </h2>
+
+        {/* 完整先修課表入口（主要進入點） */}
+        <Link
+          href="/course"
+          className="group mb-4 block overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 to-accent/10 p-5 transition-all hover:border-primary/50 hover:shadow-md"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                <GraduationCap className="h-5 w-5" />
+              </span>
+              <div>
+                <h3 className="font-bold tracking-tight">完整先修課表</h3>
+                <p className="text-sm text-muted-foreground">
+                  照順序一步步學：學單元 → 間隔複習 → 完成自動診斷吸收度
+                </p>
+              </div>
+            </div>
+            <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+          </div>
+        </Link>
 
         {/* 螺旋複習入口 */}
         <Link

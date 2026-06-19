@@ -12,17 +12,40 @@ import {
 } from "@/lib/storage";
 import { syncHomeworkLocalToSupabase } from "@/lib/homework-storage";
 import {
-  getAllPracticeData,
+  getAllPracticeDataCloud,
+  syncPracticeLocalToSupabase,
   summarizePractice,
   type UnitPracticeData,
   type PracticeSummary,
   type ChallengeSession,
   type DrillEntry,
 } from "@/lib/practice-storage";
+import {
+  getAllLatestDiagnoses,
+  type DiagnosisRecord,
+} from "@/lib/diagnosis-storage";
+import { getCourseProgress } from "@/lib/course-storage";
+import { curriculum, totalUnitSteps } from "@/content/curriculum";
 import type { DrillQuestion } from "@/content/types";
 import { isSupabaseEnabled } from "@/lib/supabase";
-import { ChevronLeft, CheckCircle2, AlertCircle, CloudUpload, CheckCheck } from "lucide-react";
+import {
+  ChevronLeft,
+  CheckCircle2,
+  AlertCircle,
+  CloudUpload,
+  CheckCheck,
+  Sparkles,
+  GraduationCap,
+  ArrowRight,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const ABSORPTION_STYLE: Record<string, { cls: string; emoji: string }> = {
+  扎實: { cls: "bg-correct/15 text-correct", emoji: "🟢" },
+  大致理解: { cls: "bg-accent/15 text-accent", emoji: "🔵" },
+  部分理解: { cls: "bg-gentle/20 text-gentle-foreground", emoji: "🟡" },
+  還在背: { cls: "bg-destructive/10 text-destructive", emoji: "🔴" },
+};
 
 const SECTION_NAMES = ["情境引入", "引導推導", "用自己的話說", "變形題驗證", "回扣"];
 
@@ -41,6 +64,10 @@ export default function ParentPage() {
   const [practiceData, setPracticeData] = React.useState<
     Record<string, UnitPracticeData>
   >({});
+  const [diagnoses, setDiagnoses] = React.useState<
+    Record<string, DiagnosisRecord>
+  >({});
+  const [checkpointsDone, setCheckpointsDone] = React.useState(0);
   const [loaded, setLoaded] = React.useState(false);
   const [syncState, setSyncState] = React.useState<SyncState>("idle");
   const [syncMsg, setSyncMsg] = React.useState("");
@@ -48,7 +75,12 @@ export default function ParentPage() {
   React.useEffect(() => {
     let active = true;
     (async () => {
-      const allProgress = await getAllProgress();
+      const [allProgress, practice, diags, courseProg] = await Promise.all([
+        getAllProgress(),
+        getAllPracticeDataCloud(),
+        getAllLatestDiagnoses(),
+        getCourseProgress(),
+      ]);
       const progressMap: Record<string, UnitProgress> = {};
       for (const p of allProgress) progressMap[p.unitId] = p;
 
@@ -58,24 +90,32 @@ export default function ParentPage() {
           explanation: await getLatestExplanation(u.id),
         })),
       );
+      const checkpoints = curriculum.filter(
+        (s) => s.kind === "review" && courseProg[s.id]?.completedAt,
+      ).length;
       if (active) {
         setRows(result);
-        setPracticeData(getAllPracticeData());
+        setPracticeData(practice);
+        setDiagnoses(diags);
+        setCheckpointsDone(checkpoints);
         setLoaded(true);
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function handleSync() {
     setSyncState("syncing");
     setSyncMsg("");
     try {
-      const [math, hw] = await Promise.all([
+      const [math, hw, prac] = await Promise.all([
         syncLocalToSupabase(),
         syncHomeworkLocalToSupabase(),
+        syncPracticeLocalToSupabase(),
       ]);
-      const errors = [math.error, hw.error].filter(Boolean);
+      const errors = [math.error, hw.error, prac.error].filter(Boolean);
       if (errors.length > 0) {
         setSyncState("error");
         setSyncMsg(`部分失敗：${errors.join("；")}`);
@@ -84,7 +124,8 @@ export default function ParentPage() {
           math.progressCount +
           math.explanationCount +
           hw.draftCount +
-          hw.vocabCount;
+          hw.vocabCount +
+          prac.practiceCount;
         setSyncState("done");
         setSyncMsg(
           total === 0
@@ -98,9 +139,11 @@ export default function ParentPage() {
     }
   }
 
+  const doneUnits = rows.filter((r) => Boolean(r.progress?.completedAt)).length;
   const anyData =
     rows.some((r) => r.progress !== null || r.explanation !== null) ||
-    Object.keys(practiceData).length > 0;
+    Object.keys(practiceData).length > 0 ||
+    Object.keys(diagnoses).length > 0;
 
   return (
     <div className="flex flex-1 flex-col py-8">
@@ -116,14 +159,39 @@ export default function ParentPage() {
       </div>
       <h1 className="text-2xl font-bold tracking-tight">家長檢視</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        孩子在這台裝置、這個瀏覽器上的所有學習紀錄。
+        孩子的學習紀錄、每個單元完成後的 AI 吸收度診斷。
       </p>
 
-      {/* 提示：只有同一台裝置才能看到 */}
-      <div className="mt-4 rounded-xl border border-gentle/40 bg-gentle/10 px-4 py-3 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">注意：</span>
-        資料存在孩子使用的裝置裡。如果你現在用的不是孩子平常用來學習的裝置，這裡會是空的。
-      </div>
+      {/* 完整先修課表進度總覽 */}
+      <Link
+        href="/course"
+        className="group mt-4 block rounded-xl border border-primary/30 bg-primary/5 p-4 transition-all hover:border-primary/50"
+      >
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <GraduationCap className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="font-semibold">完整先修課表</p>
+              <p className="text-sm text-muted-foreground">
+                {loaded
+                  ? `已完成 ${doneUnits}/${totalUnitSteps} 單元、${checkpointsDone} 個間隔複習檢核點`
+                  : "讀取中…"}
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+        </div>
+      </Link>
+
+      {/* 提示：未啟用雲端時，資料只在孩子的裝置上 */}
+      {!isSupabaseEnabled && (
+        <div className="mt-4 rounded-xl border border-gentle/40 bg-gentle/10 px-4 py-3 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">注意：</span>
+          目前未啟用雲端，資料只存在孩子使用的裝置裡。如果你現在用的不是孩子平常用來學習的裝置，這裡會是空的。
+        </div>
+      )}
 
       {/* 跨裝置同步 */}
       <div className="mt-4 rounded-xl border bg-card px-5 py-4">
@@ -192,7 +260,8 @@ export default function ParentPage() {
           {units.map((unit, i) => {
             const { progress, explanation } = rows[i] ?? {};
             const pd = practiceData[unit.id];
-            if (!progress && !explanation && !pd) return null;
+            const diag = diagnoses[unit.id] ?? null;
+            if (!progress && !explanation && !pd && !diag) return null;
             return (
               <UnitCard
                 key={unit.id}
@@ -200,6 +269,7 @@ export default function ParentPage() {
                 progress={progress ?? null}
                 explanation={explanation ?? null}
                 practice={pd ?? null}
+                diagnosis={diag}
               />
             );
           })}
@@ -214,11 +284,13 @@ function UnitCard({
   progress,
   explanation,
   practice,
+  diagnosis,
 }: {
   unit: (typeof units)[number];
   progress: UnitProgress | null;
   explanation: ExplanationRecord | null;
   practice: UnitPracticeData | null;
+  diagnosis: DiagnosisRecord | null;
 }) {
   const reached = progress?.sectionReached ?? 0;
   const completed = Boolean(progress?.completedAt);
@@ -265,6 +337,9 @@ function UnitCard({
         {progress && (
           <ProgressBar reached={reached} completed={completed} />
         )}
+
+        {/* AI 吸收度診斷（完成單元時產生） */}
+        {diagnosis && <DiagnosisBlock diagnosis={diagnosis} />}
 
         {/* 孩子寫的解釋（第 3 段） */}
         {explanation && (
@@ -402,6 +477,70 @@ function ExplanationBlock({
               追問：{aiFb.followup_question}
             </p>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DiagnosisBlock({ diagnosis }: { diagnosis: DiagnosisRecord }) {
+  const d = diagnosis.diagnosis;
+  const style =
+    ABSORPTION_STYLE[d.absorption_level] ?? ABSORPTION_STYLE["部分理解"];
+  const date = new Date(diagnosis.createdAt).toLocaleDateString("zh-TW", {
+    month: "numeric",
+    day: "numeric",
+  });
+  return (
+    <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary" />
+          <p className="text-xs font-medium text-primary">AI 吸收度診斷</p>
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-xs font-semibold",
+              style.cls,
+            )}
+          >
+            {style.emoji} {d.absorption_level}
+          </span>
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {date}
+          {diagnosis.source === "heuristic" ? "・離線判斷" : ""}
+        </span>
+      </div>
+      <div className="grid gap-1 text-sm">
+        <p>
+          <span className="text-muted-foreground">概念遷移：</span>
+          <span className="font-medium">
+            {d.transferred ? "已遷移（換外觀也抓得到）" : "尚未遷移"}
+          </span>
+        </p>
+        {d.strengths && (
+          <p>
+            <span className="text-muted-foreground">強項：</span>
+            {d.strengths}
+          </p>
+        )}
+        {d.weakness && (
+          <p>
+            <span className="text-muted-foreground">要補：</span>
+            {d.weakness}
+          </p>
+        )}
+        {d.recommendation && (
+          <p>
+            <span className="text-muted-foreground">建議：</span>
+            {d.recommendation}
+          </p>
+        )}
+      </div>
+      {d.parent_note && (
+        <div className="rounded-md bg-card/70 px-3 py-2 text-sm">
+          <span className="font-medium">給家長：</span>
+          {d.parent_note}
         </div>
       )}
     </div>

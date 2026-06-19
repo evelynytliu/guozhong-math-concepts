@@ -45,11 +45,67 @@ create table if not exists public.mathconcept_homework_vocab (
   updated_at timestamptz not null default now()
 );
 
+-- ── 完整先修課表 + 練習區上雲 + 完成章節 AI 診斷 ──────────
+-- 練習區（手感題 + 變形題挑戰）每單元一列（原本只存 localStorage，現上雲）
+create table if not exists public.mathconcept_practice (
+  id uuid primary key default gen_random_uuid(),
+  unit_id text not null unique,
+  drill jsonb not null default '{}'::jsonb,
+  sessions jsonb not null default '[]'::jsonb,
+  challenge_rounds int not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+-- 螺旋複習：每做完一輪記一列（checkpoint_id 對應課表檢核點 rA/rB/rC，自由練習為 null）
+create table if not exists public.mathconcept_spiral_sessions (
+  id uuid primary key default gen_random_uuid(),
+  checkpoint_id text,
+  available_units jsonb not null default '[]'::jsonb,
+  results jsonb not null default '[]'::jsonb,
+  correct int not null default 0,
+  total int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+-- 完成單元時的 AI（或本地啟發式）吸收度診斷，可多筆
+create table if not exists public.mathconcept_diagnoses (
+  id uuid primary key default gen_random_uuid(),
+  unit_id text not null,
+  absorption_level text,            -- 扎實 | 大致理解 | 部分理解 | 還在背
+  transferred boolean,              -- 變形題(非教材題)是否遷移
+  strengths text,
+  weakness text,
+  recommendation text,
+  next_action text,                 -- advance | spiral_review | redo_guided
+  parent_note text,
+  child_note text,
+  source text,                      -- 'ai' | 'heuristic'
+  signals jsonb,
+  raw jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists mathconcept_diagnoses_unit_idx
+  on public.mathconcept_diagnoses (unit_id, created_at desc);
+
+-- 完整先修課表：每個步驟完成紀錄（學單元 / 複習檢核點 / 結業）
+create table if not exists public.mathconcept_course_progress (
+  id uuid primary key default gen_random_uuid(),
+  step_id text not null unique,
+  completed_at timestamptz,
+  payload jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
 -- 自用專案：開 RLS 但允許完整存取（資料只在自己機器上用）
 alter table public.mathconcept_progress enable row level security;
 alter table public.mathconcept_explanations enable row level security;
 alter table public.mathconcept_homework_drafts enable row level security;
 alter table public.mathconcept_homework_vocab enable row level security;
+alter table public.mathconcept_practice enable row level security;
+alter table public.mathconcept_spiral_sessions enable row level security;
+alter table public.mathconcept_diagnoses enable row level security;
+alter table public.mathconcept_course_progress enable row level security;
 
 drop policy if exists "mathconcept allow all progress" on public.mathconcept_progress;
 create policy "mathconcept allow all progress" on public.mathconcept_progress
@@ -65,4 +121,20 @@ create policy "mathconcept allow all hw drafts" on public.mathconcept_homework_d
 
 drop policy if exists "mathconcept allow all hw vocab" on public.mathconcept_homework_vocab;
 create policy "mathconcept allow all hw vocab" on public.mathconcept_homework_vocab
+  for all using (true) with check (true);
+
+drop policy if exists "mathconcept allow all practice" on public.mathconcept_practice;
+create policy "mathconcept allow all practice" on public.mathconcept_practice
+  for all using (true) with check (true);
+
+drop policy if exists "mathconcept allow all spiral" on public.mathconcept_spiral_sessions;
+create policy "mathconcept allow all spiral" on public.mathconcept_spiral_sessions
+  for all using (true) with check (true);
+
+drop policy if exists "mathconcept allow all diagnoses" on public.mathconcept_diagnoses;
+create policy "mathconcept allow all diagnoses" on public.mathconcept_diagnoses
+  for all using (true) with check (true);
+
+drop policy if exists "mathconcept allow all course" on public.mathconcept_course_progress;
+create policy "mathconcept allow all course" on public.mathconcept_course_progress
   for all using (true) with check (true);

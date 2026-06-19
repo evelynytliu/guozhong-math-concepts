@@ -11,14 +11,30 @@ import { RefreshCw, Target } from "lucide-react";
 export function SpiralReview({
   questions,
   onRestart,
+  onComplete,
 }: {
   questions: SpiralQuestion[];
   onRestart: () => void;
+  // 一輪做完時回報每題對錯（給 /review 記錄 session、標記課表檢核點用）。觸發一次。
+  onComplete?: (
+    results: { question: SpiralQuestion; correct: boolean }[],
+  ) => void;
 }) {
   const [idx, setIdx] = React.useState(0);
   const [answer, setAnswer] = React.useState("");
   const [revealed, setRevealed] = React.useState(false);
   const [marks, setMarks] = React.useState<boolean[]>([]);
+
+  const reachedEnd = idx >= questions.length;
+  const reported = React.useRef(false);
+  React.useEffect(() => {
+    if (reachedEnd && questions.length > 0 && !reported.current) {
+      reported.current = true;
+      onComplete?.(
+        questions.map((q, i) => ({ question: q, correct: marks[i] ?? false })),
+      );
+    }
+  }, [reachedEnd, questions, marks, onComplete]);
 
   if (questions.length === 0) {
     return (

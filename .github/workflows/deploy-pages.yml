@@ -2,8 +2,9 @@ name: Deploy to GitHub Pages
 
 # 每次 push 到 main 就重新建置靜態網站並部署到 GitHub Pages。
 # 建置時設 BUILD_TARGET=pages → next.config 切到 output: 'export'。
-# CI 沒有 .env.local，所以網站自動用 localStorage（不帶 Supabase 金鑰、不外洩）。
-# AI route 在靜態匯出時為空，前端會自動退回靜態解釋。
+# 進度/解釋/練習/診斷會連同一個 Supabase（金鑰由 Secrets 注入；用密碼門擋陌生人）。
+# 靜態站本身沒有後端 AI route：若設了 NEXT_PUBLIC_AI_BASE_URL（家裡電腦的 tunnel），
+# AI 請求會打回本機 claude login；沒設則 AI 自動退回靜態/本地啟發式。
 
 on:
   push:
@@ -38,6 +39,9 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           NEXT_PUBLIC_APP_PASSCODE: ${{ secrets.NEXT_PUBLIC_APP_PASSCODE }}
+          # 家裡電腦的 AI tunnel 網址（Option C：線上答題、只有 AI 連本機）。
+          # 沒設這個 Secret 時，線上站的 AI 會自動退回靜態/本地啟發式。
+          NEXT_PUBLIC_AI_BASE_URL: ${{ secrets.NEXT_PUBLIC_AI_BASE_URL }}
       - name: Disable Jekyll (keep _next folder)
         run: touch out/.nojekyll
       - uses: actions/configure-pages@v5

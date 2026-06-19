@@ -1,12 +1,14 @@
 // src/app/api/explain/route.ts
 // 單元二（AI 模式）第 3 段：判斷孩子的解釋是「理解型」還是「複述型」。
 //
-// 用 Agent SDK 當「純分析引擎」：關掉所有工具、單回合、自訂 system prompt，
-// 要求只回傳 JSON。認證走本機 `claude login` 的訂閱（所以不部署雲端）。
-// 任何錯誤（SDK 不在、未登入、逾時、解析失敗）一律 try/catch，
+// 用 Gemini REST API 當「純分析引擎」：單回合、自訂 system prompt、要求只回 JSON。
+// 認證走免費的 Gemini API 金鑰（GEMINI_API_KEY），所以可以部署到雲端、iPad 隨地能用。
+// 任何錯誤（沒金鑰、額度用盡、逾時、解析失敗）一律 try/catch，
 // 回傳 fallbackToStatic=true，讓前端退回靜態對照，孩子永遠不會卡住。
 
 import { NextResponse } from "next/server";
+import { corsJson, corsPreflight } from "@/lib/ai-cors";
+import { callGemini } from "@/lib/gemini";
 import type {
   AiFeedback,
   ExplainRequest,
@@ -87,7 +89,7 @@ async function handleExplain(
   try {
     body = (await request.json()) as ExplainRequest;
   } catch {
-    return NextResponse.json({
+    return corsJson({
       ok: false,
       feedback: null,
       fallbackToStatic: true,
@@ -96,7 +98,7 @@ async function handleExplain(
   }
 
   if (!body?.studentText || body.studentText.trim().length < 2) {
-    return NextResponse.json({
+    return corsJson({
       ok: false,
       feedback: null,
       fallbackToStatic: true,
@@ -108,49 +110,16 @@ async function handleExplain(
   const timeout = setTimeout(() => abortController.abort(), 30_000);
 
   try {
-    // 動態載入 SDK：若套件不存在或載入失敗，落入 catch → 退回靜態
-    const { query } = await import("@anthropic-ai/claude-agent-sdk");
-
-    const response = query({
-      prompt: buildUserPrompt(body),
-      options: {
-        systemPrompt: SYSTEM_PROMPT, // 自訂 prompt，當分析引擎（不走 coding 預設）
-        allowedTools: [], // 關掉所有工具
-        disallowedTools: ["Bash", "Read", "Write", "Edit", "WebSearch", "WebFetch"],
-        maxTurns: 1, // 單回合分析
-        permissionMode: "default",
-        abortController,
-        ...(process.env.ANTHROPIC_MODEL
-          ? { model: process.env.ANTHROPIC_MODEL }
-          : {}),
-      },
+    // 送給 Gemini 分析（單回合）。失敗（沒金鑰、額度、逾時等）會 throw → 落入 catch 退回靜態。
+    const resultText = await callGemini({
+      system: SYSTEM_PROMPT,
+      user: buildUserPrompt(body),
+      signal: abortController.signal,
     });
-
-    let resultText = "";
-    for await (const message of response) {
-      if (message.type === "result") {
-        if (message.subtype === "success") {
-          resultText = message.result;
-        }
-        break; // 拿到 result 就結束
-      }
-    }
-
-    // 偵測「未登入 / 額度用盡」這類訊息：CLI 會把它當成一般文字回傳，
-    // 不是拋例外。明確判斷後給清楚的錯誤訊息（仍然退回靜態）。
-    if (/invalid api key|please run \/login|not logged in|credit balance|insufficient/i.test(resultText)) {
-      return NextResponse.json({
-        ok: false,
-        feedback: null,
-        fallbackToStatic: true,
-        error:
-          "AI 未認證：請在這台電腦的終端機執行 `claude login`（或在 .env.local 填 ANTHROPIC_API_KEY）後重試。",
-      });
-    }
 
     const feedback = parseFeedback(resultText);
     if (!feedback) {
-      return NextResponse.json({
+      return corsJson({
         ok: false,
         feedback: null,
         fallbackToStatic: true,
@@ -158,10 +127,10 @@ async function handleExplain(
       });
     }
 
-    return NextResponse.json({ ok: true, feedback, fallbackToStatic: false });
+    return corsJson({ ok: true, feedback, fallbackToStatic: false });
   } catch (err) {
     // SDK 不在、未 claude login、逾時、其他錯誤 → 退回靜態
-    return NextResponse.json({
+    return corsJson({
       ok: false,
       feedback: null,
       fallbackToStatic: true,
@@ -175,3 +144,5 @@ async function handleExplain(
 // 靜態匯出時 POST 為 undefined（route 沒有 handler，可被靜態輸出）；
 // 其他情況維持正常的 POST handler。
 export const POST = isStaticExport ? undefined : handleExplain;
+// 線上靜態站跨網域呼叫時的 OPTIONS 預檢（靜態匯出時為 undefined）。
+export const OPTIONS = isStaticExport ? undefined : corsPreflight;

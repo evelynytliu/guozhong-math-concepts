@@ -29,3 +29,6 @@ yarn-error.log*
 
 # claude code agent worktrees (temporary, not for version control)
 .claude/worktrees/
+
+# 參考文件（暑假作業 PDF 等，受著作權，公開 repo 不放）
+參考文件/

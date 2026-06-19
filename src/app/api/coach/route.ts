@@ -1,8 +1,8 @@
 // src/app/api/coach/route.ts
 // 報告草稿（draft）的「AI 追問」按鈕（混合模式）。
 //
-// 跟 /api/explain 同一套作法：用 Agent SDK 當純分析引擎（關掉工具、單回合、
-// 自訂 system prompt、只回傳 JSON），認證走本機 `claude login` 訂閱。
+// 跟 /api/explain 同一套作法：用 Gemini REST API 當純分析引擎（單回合、
+// 自訂 system prompt、只回傳 JSON），認證走免費的 Gemini API 金鑰。
 // 任何錯誤一律 try/catch → fallbackToStatic=true，前端退回靜態的角度提示。
 //
 // 設計原則（呼應 CLAUDE.md 的孩子問題）：
@@ -11,6 +11,8 @@
 //   絕對不要直接產出可以照抄的成品。
 
 import { NextResponse } from "next/server";
+import { corsJson, corsPreflight } from "@/lib/ai-cors";
+import { callGemini } from "@/lib/gemini";
 import type { CoachFeedback, CoachRequest, CoachResponse } from "@/lib/coach";
 
 // 靜態匯出（GitHub Pages）不能有後端 POST handler；此時 route 留空，
@@ -92,7 +94,7 @@ async function handleCoach(
   try {
     body = (await request.json()) as CoachRequest;
   } catch {
-    return NextResponse.json({
+    return corsJson({
       ok: false,
       feedback: null,
       fallbackToStatic: true,
@@ -104,57 +106,25 @@ async function handleCoach(
   const timeout = setTimeout(() => abortController.abort(), 30_000);
 
   try {
-    const { query } = await import("@anthropic-ai/claude-agent-sdk");
-
-    const response = query({
-      prompt: buildUserPrompt(body),
-      options: {
-        systemPrompt: SYSTEM_PROMPT,
-        allowedTools: [],
-        disallowedTools: ["Bash", "Read", "Write", "Edit", "WebSearch", "WebFetch"],
-        maxTurns: 1,
-        permissionMode: "default",
-        abortController,
-        ...(process.env.ANTHROPIC_MODEL
-          ? { model: process.env.ANTHROPIC_MODEL }
-          : {}),
-      },
+    // 送給 Gemini 分析。失敗（沒金鑰、額度、逾時等）會 throw → 落入 catch 退回靜態提示。
+    const resultText = await callGemini({
+      system: SYSTEM_PROMPT,
+      user: buildUserPrompt(body),
+      signal: abortController.signal,
     });
-
-    let resultText = "";
-    for await (const message of response) {
-      if (message.type === "result") {
-        if (message.subtype === "success") resultText = message.result;
-        break;
-      }
-    }
-
-    if (
-      /invalid api key|please run \/login|not logged in|credit balance|insufficient/i.test(
-        resultText,
-      )
-    ) {
-      return NextResponse.json({
-        ok: false,
-        feedback: null,
-        fallbackToStatic: true,
-        error:
-          "AI 未認證：請在這台電腦的終端機執行 `claude login`（或在 .env.local 填 ANTHROPIC_API_KEY）後重試。",
-      });
-    }
 
     const feedback = parseCoach(resultText);
     if (!feedback) {
-      return NextResponse.json({
+      return corsJson({
         ok: false,
         feedback: null,
         fallbackToStatic: true,
         error: "could not parse AI output",
       });
     }
-    return NextResponse.json({ ok: true, feedback, fallbackToStatic: false });
+    return corsJson({ ok: true, feedback, fallbackToStatic: false });
   } catch (err) {
-    return NextResponse.json({
+    return corsJson({
       ok: false,
       feedback: null,
       fallbackToStatic: true,
@@ -166,3 +136,5 @@ async function handleCoach(
 }
 
 export const POST = isStaticExport ? undefined : handleCoach;
+// 線上靜態站跨網域呼叫時的 OPTIONS 預檢（靜態匯出時為 undefined）。
+export const OPTIONS = isStaticExport ? undefined : corsPreflight;

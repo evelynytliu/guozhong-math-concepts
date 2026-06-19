@@ -5,6 +5,8 @@
 // 跟 explanation.ts 的設計一致：任何錯誤都不丟出來，而是回傳
 // fallbackToStatic=true，讓前端退回靜態的角度提示(sparks)，孩子永遠不會卡住。
 
+import { aiEndpoint } from "./ai-endpoint";
+
 // AI 回傳的結構（給草稿欄位的引導，不是幫他寫答案）
 export interface CoachFeedback {
   // 幾個「不同的方向」讓他挑著想（開頭式，不是完整答案）
@@ -33,7 +35,7 @@ export interface CoachRequest {
 // 前端 helper：把欄位脈絡 + 孩子目前寫的內容送到 /api/coach。
 export async function requestCoach(req: CoachRequest): Promise<CoachResponse> {
   try {
-    const res = await fetch("/api/coach", {
+    const res = await fetch(aiEndpoint("/api/coach"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(req),

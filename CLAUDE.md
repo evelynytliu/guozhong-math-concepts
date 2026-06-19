@@ -145,11 +145,44 @@
 
 ---
 
+## 完整先修課表 + 完成章節即時診斷 + iPad 線上答題
+
+> 這三個是把上面六個單元「組裝成一套完整先修流程、並自動診斷吸收度」的擴充，
+> 不改五段式單元本身的設計。
+
+### 完整先修課表（`/course`）
+- 把 6 個單元編成有順序、有間隔複習檢核點的導引式課程，對應學習原則
+  （推導/提取/Feynman → 間隔複習 → 交錯 → 診斷）。課程資料在 `src/content/curriculum.ts`（純資料）。
+- 「學」步驟連 `/unit/[id]`；「複」檢核點連 `/review?checkpoint=rX`（沿用螺旋複習），
+  做完寫 `mathconcept_course_progress` 並記分數；結業是口頭總驗收。
+- 首頁與家長頁都有入口；課表頁顯示步驟狀態、間隔「建議幾天後」、單元最新診斷摘要。
+
+### 完成章節・即時 AI 診斷（`/api/diagnose`）
+- 觸發點：`unit-flow.tsx` 的 `handleFinish()`（孩子按「完成這個單元」）。
+- 蒐集訊號（第 3 段解釋＋自評／單元二 AI 判斷＋第 4 段變形題逐題對錯＋練習區成績）送 AI，
+  判斷「吸收度（扎實/大致理解/部分理解/還在背）」與「概念是否遷移」，回結構化 JSON（含 next_action）。
+- **與 `/api/explain` 同骨架**：Agent SDK 當分析引擎、本機 `claude login`、全程 try/catch。
+- **AI 不可用一律退回 `heuristicDiagnosis`（本地啟發式，`src/lib/diagnose.ts`）**：用「教材題對、
+  變形題全錯＝還在背」這類規則產出，**保證一定有診斷被記錄**。型別/前端 helper 在 `src/lib/diagnose.ts`，
+  儲存在 `src/lib/diagnosis-storage.ts`。
+
+### iPad 線上答題、只有 AI 連本機（topology = Option C）
+- 孩子用**線上靜態站**答題（電腦關著也能答、存 Supabase），**只有 AI 分析**透過 tunnel 打回本機 `claude login`。
+- `src/lib/ai-endpoint.ts` 的 `aiEndpoint()`：有設 `NEXT_PUBLIC_AI_BASE_URL`（家裡電腦 tunnel 網址）就打 tunnel，
+  沒設則同源相對路徑。三個 AI helper（explain/coach/diagnose）都走它。
+- 三個 AI route 加 CORS（`src/lib/ai-cors.ts`：`corsJson` + `export const OPTIONS`，靜態時為 undefined）。
+- 設定步驟與安全提醒見 README「iPad 線上答題」段；`NEXT_PUBLIC_AI_BASE_URL` 設在 GitHub Secrets。
+
 ## 資料結構（Supabase）
 
 > 暑假作業另有兩張表：`mathconcept_homework_drafts`（草稿欄位內容 + 是否已手抄）、
 > `mathconcept_homework_vocab`（單字精熟：哪些卡已拼對）。儲存層 `src/lib/homework-storage.ts`，
 > 同樣 localStorage 優先、Supabase 可選，schema 見 `supabase/schema.sql`。
+>
+> 先修課表/診斷另有四張表（皆 `mathconcept_` 前綴、allow-all RLS）：
+> `mathconcept_practice`（練習區上雲，原本只在 localStorage）、`mathconcept_spiral_sessions`（每輪螺旋複習）、
+> `mathconcept_diagnoses`（完成章節的 AI/啟發式診斷）、`mathconcept_course_progress`（課表步驟完成）。
+> 儲存層分別在 `src/lib/practice-storage.ts`、`src/lib/diagnosis-storage.ts`、`src/lib/course-storage.ts`。
 
 ### `units`（單元）
 - `id`, `title`, `order`, `check_mode`（'static' | 'ai'）, `summary`

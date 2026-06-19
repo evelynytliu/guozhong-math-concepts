@@ -16,9 +16,40 @@ import { Button } from "@/components/ui/button";
 import {
   getProgress,
   saveProgress,
+  getLatestExplanation,
   type UnitProgress,
 } from "@/lib/storage";
-import { ArrowLeft, ArrowRight, ChevronLeft, Dumbbell } from "lucide-react";
+import { getPracticeData } from "@/lib/practice-storage";
+import {
+  requestDiagnosis,
+  heuristicDiagnosis,
+  type Diagnosis,
+  type DiagnoseSignals,
+} from "@/lib/diagnose";
+import { saveDiagnosis, getLatestDiagnosis } from "@/lib/diagnosis-storage";
+import { cn } from "@/lib/utils";
+import {
+  ArrowLeft,
+  ArrowRight,
+  ChevronLeft,
+  Dumbbell,
+  Repeat,
+  RotateCcw,
+  Sparkles,
+} from "lucide-react";
+
+type DiagState = {
+  state: "idle" | "running" | "done";
+  result: Diagnosis | null;
+  source: "ai" | "heuristic" | null;
+};
+
+const ABSORPTION_STYLE: Record<string, { cls: string; emoji: string }> = {
+  扎實: { cls: "bg-correct/15 text-correct", emoji: "🟢" },
+  大致理解: { cls: "bg-accent/15 text-accent", emoji: "🔵" },
+  部分理解: { cls: "bg-gentle/20 text-gentle-foreground", emoji: "🟡" },
+  還在背: { cls: "bg-destructive/10 text-destructive", emoji: "🔴" },
+};
 
 export function UnitFlow({ unit }: { unit: Unit }) {
   const router = useRouter();
@@ -32,8 +63,13 @@ export function UnitFlow({ unit }: { unit: Unit }) {
   >({});
   const [completedAt, setCompletedAt] = React.useState<string | null>(null);
   const [loaded, setLoaded] = React.useState(false);
+  const [diag, setDiag] = React.useState<DiagState>({
+    state: "idle",
+    result: null,
+    source: null,
+  });
 
-  // 載入既有進度（resume）
+  // 載入既有進度（resume）+ 若已完成，撈出上次的診斷一起顯示
   React.useEffect(() => {
     let active = true;
     (async () => {
@@ -44,6 +80,15 @@ export function UnitFlow({ unit }: { unit: Unit }) {
         setCurrent(Math.max(1, p.sectionReached));
         setVariantResults(p.variantResults ?? {});
         setCompletedAt(p.completedAt);
+        if (p.completedAt) {
+          const existing = await getLatestDiagnosis(unit.id);
+          if (active && existing)
+            setDiag({
+              state: "done",
+              result: existing.diagnosis,
+              source: existing.source,
+            });
+        }
       }
       setLoaded(true);
     })();
@@ -100,6 +145,68 @@ export function UnitFlow({ unit }: { unit: Unit }) {
       completedAt: now,
       variantResults,
     });
+    void runDiagnosis(now);
+  }
+
+  // 完成單元當下的即時診斷：蒐集這個單元的所有訊號 → 送 /api/diagnose
+  //（線上站會打回本機 tunnel）→ AI 不可用就退回本地啟發式，保證一定有診斷被記錄。
+  async function runDiagnosis(now: string) {
+    setDiag({ state: "running", result: null, source: null });
+    // 先把訊號組好，catch 時也能用本地啟發式產出
+    let signals: DiagnoseSignals = { variants: [], challenge: [] };
+    try {
+      const explanation = await getLatestExplanation(unit.id);
+      const practice = getPracticeData(unit.id);
+      const latestSession = practice.sessions[0];
+      const variantQs = unit.section4_variants.questions;
+      signals = {
+        explanation: explanation?.studentText,
+        selfAssessment: explanation?.selfAssessment ?? null,
+        aiUnderstanding: explanation?.aiFeedback?.understanding_level ?? null,
+        variants: variantQs
+          .filter((q) => q.id in variantResults)
+          .map((q) => ({
+            question: q.question,
+            testingWhat: q.testingWhat,
+            likeTextbook: q.likeTextbook,
+            correct: variantResults[q.id] === true,
+          })),
+        challenge: (latestSession?.results ?? []).map((r) => ({
+          difficulty: r.difficulty,
+          conceptAspect: r.conceptAspect,
+          correct: r.mark === "correct",
+        })),
+      };
+      const conceptHint =
+        unit.section3_explain.aiConceptHint || unit.summary;
+      const res = await requestDiagnosis({
+        unitId: unit.id,
+        unitTitle: unit.title,
+        conceptHint,
+        signals,
+      });
+      const useAi = res.ok && res.diagnosis;
+      const diagnosis = useAi ? res.diagnosis! : heuristicDiagnosis(signals);
+      const source: "ai" | "heuristic" = useAi ? "ai" : "heuristic";
+      await saveDiagnosis({
+        unitId: unit.id,
+        diagnosis,
+        source,
+        signals,
+        createdAt: now,
+      });
+      setDiag({ state: "done", result: diagnosis, source });
+    } catch {
+      const diagnosis = heuristicDiagnosis(signals);
+      await saveDiagnosis({
+        unitId: unit.id,
+        diagnosis,
+        source: "heuristic",
+        signals,
+        createdAt: now,
+      });
+      setDiag({ state: "done", result: diagnosis, source: "heuristic" });
+    }
   }
 
   const nextUnit = getNextUnit(unit.id);
@@ -168,6 +275,21 @@ export function UnitFlow({ unit }: { unit: Unit }) {
               }
               onPractice={() => goTo(6)}
             />
+            {diag.state !== "idle" && (
+              <DiagnosisResult
+                diag={diag}
+                hasPractice={hasPractice}
+                nextTitle={nextUnit?.title}
+                onRedo={() => goTo(2)}
+                onSpiral={() => router.push("/review")}
+                onNext={() =>
+                  nextUnit
+                    ? router.push(`/unit/${nextUnit.id}`)
+                    : router.push("/")
+                }
+                onCourse={() => router.push("/course")}
+              />
+            )}
           </div>
         )}
         {current === 6 && <PracticeZone unit={unit} />}
@@ -253,6 +375,94 @@ function UnitCompletion({
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// 完成單元後的即時吸收度診斷（診斷中 → 結果 + 依建議的下一步）
+function DiagnosisResult({
+  diag,
+  nextTitle,
+  onRedo,
+  onSpiral,
+  onNext,
+  onCourse,
+}: {
+  diag: DiagState;
+  hasPractice: boolean;
+  nextTitle?: string;
+  onRedo: () => void;
+  onSpiral: () => void;
+  onNext: () => void;
+  onCourse: () => void;
+}) {
+  if (diag.state === "running") {
+    return (
+      <div className="animate-fade-in rounded-xl border border-primary/20 bg-primary/5 p-5">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+          AI 老師正在看你這個單元的整體表現…
+        </div>
+      </div>
+    );
+  }
+
+  const d = diag.result;
+  if (!d) return null;
+  const style =
+    ABSORPTION_STYLE[d.absorption_level] ?? ABSORPTION_STYLE["部分理解"];
+
+  const primary =
+    d.next_action === "redo_guided"
+      ? { label: "回第 2 段，把概念再推一次", Icon: RotateCcw, onClick: onRedo }
+      : d.next_action === "spiral_review"
+        ? { label: "去做螺旋複習（換新題練）", Icon: Repeat, onClick: onSpiral }
+        : {
+            label: nextTitle ? `前往下一單元：${nextTitle}` : "回到所有單元",
+            Icon: ArrowRight,
+            onClick: onNext,
+          };
+  const PrimaryIcon = primary.Icon;
+
+  return (
+    <div className="animate-fade-in space-y-4 rounded-xl border bg-card p-5">
+      <div className="flex flex-wrap items-center gap-2">
+        <Sparkles className="h-4 w-4 text-primary" />
+        <p className="text-sm font-semibold">AI 吸收度診斷</p>
+        <span
+          className={cn(
+            "rounded-full px-2.5 py-0.5 text-xs font-semibold",
+            style.cls,
+          )}
+        >
+          {style.emoji} {d.absorption_level}
+        </span>
+        {diag.source === "heuristic" && (
+          <span className="text-[10px] text-muted-foreground">
+            （離線判斷；連上 AI 後會更準）
+          </span>
+        )}
+      </div>
+
+      <p className="text-[15px] leading-relaxed">{d.child_note}</p>
+
+      <div className="rounded-lg bg-muted/40 p-3 text-sm text-foreground/80">
+        <span className="font-medium">建議：</span>
+        {d.recommendation}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button size="lg" onClick={primary.onClick}>
+          <PrimaryIcon className="h-4 w-4" />
+          {primary.label}
+        </Button>
+        <button
+          onClick={onCourse}
+          className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          回完整課表
+        </button>
       </div>
     </div>
   );

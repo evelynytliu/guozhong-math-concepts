@@ -1,7 +1,15 @@
-// 練習區（手感題 + 變形題挑戰）的儲存層，純 localStorage。
+// 練習區（手感題 + 變形題挑戰）的儲存層。
+// 孩子端用 localStorage（同步、即時、resume），寫入時同時 fire-and-forget
+// upsert 到 Supabase（雲端，與 storage.ts 同策略），這樣家長在別台裝置也看得到、
+// 「所有進度都有紀錄」。雲端失敗一律吞掉，不影響孩子作答。
+
+import { getSupabase, isSupabaseEnabled } from "./supabase";
 
 const PRACTICE_KEY = "gz-math:practice";
 const MAX_SESSIONS = 5;
+
+// 與其他專案分開的資料表名稱（沿用 mathconcept_ 前綴）
+const TABLE_PRACTICE = "mathconcept_practice";
 
 export interface DrillEntry {
   answer: string;
@@ -55,6 +63,46 @@ function getUnit(unitId: string, store: Store): UnitPracticeData {
   return store[unitId] ?? { drill: {}, sessions: [] };
 }
 
+// ─── Supabase（雲端，與 localStorage 共通） ───────────────────────────────────
+
+interface PracticeRow {
+  unit_id: string;
+  drill: Record<string, DrillEntry> | null;
+  sessions: ChallengeSession[] | null;
+  challenge_rounds: number | null;
+}
+
+function rowToPractice(r: PracticeRow): UnitPracticeData {
+  return {
+    drill: r.drill ?? {},
+    sessions: r.sessions ?? [],
+    challengeRounds: r.challenge_rounds ?? r.sessions?.length ?? 0,
+  };
+}
+
+// fire-and-forget 寫入雲端：失敗一律吞掉，孩子作答不受影響
+function upsertPracticeToCloud(unitId: string, data: UnitPracticeData) {
+  if (!isSupabaseEnabled) return;
+  const sb = getSupabase();
+  if (!sb) return;
+  void sb
+    .from(TABLE_PRACTICE)
+    .upsert(
+      {
+        unit_id: unitId,
+        drill: data.drill,
+        sessions: data.sessions,
+        challenge_rounds: data.challengeRounds ?? data.sessions.length,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "unit_id" },
+    )
+    .then(
+      () => {},
+      () => {},
+    );
+}
+
 export function getPracticeData(unitId: string): UnitPracticeData {
   return getUnit(unitId, lsRead());
 }
@@ -73,6 +121,7 @@ export function saveDrillEntry(
   unit.drill[questionId] = entry;
   store[unitId] = unit;
   lsWrite(store);
+  upsertPracticeToCloud(unitId, unit);
 }
 
 export function saveChallengeSession(
@@ -86,6 +135,7 @@ export function saveChallengeSession(
   unit.challengeRounds = priorRounds + 1;
   store[unitId] = unit;
   lsWrite(store);
+  upsertPracticeToCloud(unitId, unit);
 }
 
 // ─── 摘要（給首頁卡片顯示「練習過沒、做了幾次」用） ──────────────────────────
@@ -128,4 +178,49 @@ export function summarizePractice(
     drillDone,
     drillTotal,
   };
+}
+
+// ─── 雲端讀取（給家長頁／課表頁用，跨裝置都看得到） ───────────────────────────
+
+// 從 Supabase 讀所有單元的練習資料；沒啟用或出錯就退回本機 localStorage。
+export async function getAllPracticeDataCloud(): Promise<Store> {
+  if (isSupabaseEnabled) {
+    const sb = getSupabase();
+    if (sb) {
+      const { data, error } = await sb
+        .from(TABLE_PRACTICE)
+        .select("unit_id, drill, sessions, challenge_rounds");
+      if (!error && data) {
+        const store: Store = {};
+        for (const r of data as PracticeRow[]) store[r.unit_id] = rowToPractice(r);
+        return store;
+      }
+    }
+  }
+  return lsRead();
+}
+
+// 把本機練習資料整批推上雲端（家長頁「上傳到雲端」按鈕的 backfill 用）。
+export async function syncPracticeLocalToSupabase(): Promise<{
+  practiceCount: number;
+  error: string | null;
+}> {
+  const sb = getSupabase();
+  if (!sb) return { practiceCount: 0, error: "Supabase 未啟用" };
+
+  const entries = Object.entries(lsRead());
+  if (entries.length === 0) return { practiceCount: 0, error: null };
+
+  const { error } = await sb.from(TABLE_PRACTICE).upsert(
+    entries.map(([unitId, d]) => ({
+      unit_id: unitId,
+      drill: d.drill,
+      sessions: d.sessions,
+      challenge_rounds: d.challengeRounds ?? d.sessions.length,
+      updated_at: new Date().toISOString(),
+    })),
+    { onConflict: "unit_id" },
+  );
+  if (error) return { practiceCount: 0, error: error.message };
+  return { practiceCount: entries.length, error: null };
 }

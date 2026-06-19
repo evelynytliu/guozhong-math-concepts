@@ -3,6 +3,7 @@
 // 型別同時被前端元件與 /api/explain 後端 route 使用。
 
 import type { SelfAssessment } from "@/content/types";
+import { aiEndpoint } from "./ai-endpoint";
 
 // AI 回傳的結構（CLAUDE.md 規定的 JSON 形狀）
 export interface AiFeedback {
@@ -41,7 +42,7 @@ export async function requestAiFeedback(
   req: ExplainRequest,
 ): Promise<ExplainResponse> {
   try {
-    const res = await fetch("/api/explain", {
+    const res = await fetch(aiEndpoint("/api/explain"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(req),
