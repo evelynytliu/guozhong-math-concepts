@@ -6,6 +6,7 @@ import { units } from "@/content";
 import {
   getAllProgress,
   getLatestExplanation,
+  saveExplanation,
   syncLocalToSupabase,
   type UnitProgress,
   type ExplanationRecord,
@@ -22,8 +23,15 @@ import {
 } from "@/lib/practice-storage";
 import {
   getAllLatestDiagnoses,
+  saveDiagnosis,
   type DiagnosisRecord,
 } from "@/lib/diagnosis-storage";
+import {
+  requestDiagnosis,
+  heuristicDiagnosis,
+  type DiagnoseSignals,
+} from "@/lib/diagnose";
+import { requestAiFeedback } from "@/lib/explanation";
 import { getCourseProgress } from "@/lib/course-storage";
 import { curriculum, totalUnitSteps } from "@/content/curriculum";
 import type { DrillQuestion } from "@/content/types";
@@ -37,6 +45,7 @@ import {
   Sparkles,
   GraduationCap,
   ArrowRight,
+  Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -71,40 +80,160 @@ export default function ParentPage() {
   const [loaded, setLoaded] = React.useState(false);
   const [syncState, setSyncState] = React.useState<SyncState>("idle");
   const [syncMsg, setSyncMsg] = React.useState("");
+  const [analyzeState, setAnalyzeState] = React.useState<
+    "idle" | "analyzing" | "done" | "error"
+  >("idle");
+  const [analyzeMsg, setAnalyzeMsg] = React.useState("");
+  const [analyzeProg, setAnalyzeProg] = React.useState("");
+
+  const loadAll = React.useCallback(async () => {
+    const [allProgress, practice, diags, courseProg] = await Promise.all([
+      getAllProgress(),
+      getAllPracticeDataCloud(),
+      getAllLatestDiagnoses(),
+      getCourseProgress(),
+    ]);
+    const progressMap: Record<string, UnitProgress> = {};
+    for (const p of allProgress) progressMap[p.unitId] = p;
+
+    const result = await Promise.all(
+      units.map(async (u) => ({
+        progress: progressMap[u.id] ?? null,
+        explanation: await getLatestExplanation(u.id),
+      })),
+    );
+    const checkpoints = curriculum.filter(
+      (s) => s.kind === "review" && courseProg[s.id]?.completedAt,
+    ).length;
+    setRows(result);
+    setPracticeData(practice);
+    setDiagnoses(diags);
+    setCheckpointsDone(checkpoints);
+    setLoaded(true);
+  }, []);
 
   React.useEffect(() => {
-    let active = true;
-    (async () => {
-      const [allProgress, practice, diags, courseProg] = await Promise.all([
-        getAllProgress(),
-        getAllPracticeDataCloud(),
-        getAllLatestDiagnoses(),
-        getCourseProgress(),
-      ]);
-      const progressMap: Record<string, UnitProgress> = {};
-      for (const p of allProgress) progressMap[p.unitId] = p;
+    void loadAll();
+  }, [loadAll]);
 
-      const result = await Promise.all(
-        units.map(async (u) => ({
-          progress: progressMap[u.id] ?? null,
-          explanation: await getLatestExplanation(u.id),
-        })),
-      );
-      const checkpoints = curriculum.filter(
-        (s) => s.kind === "review" && courseProg[s.id]?.completedAt,
-      ).length;
-      if (active) {
-        setRows(result);
-        setPracticeData(practice);
-        setDiagnoses(diags);
-        setCheckpointsDone(checkpoints);
-        setLoaded(true);
+  // 把孩子已經寫過、但還沒經過 AI 判讀的解釋與單元表現補做 AI 分析，
+  // 用的是跟單元流程裡完全相同的請求組法，結果寫回儲存層後直接顯示在各單元。
+  async function handleAnalyzeAll() {
+    setAnalyzeState("analyzing");
+    setAnalyzeMsg("");
+    let explained = 0;
+    let diagnosedAi = 0;
+    let diagnosedHeuristic = 0;
+    try {
+      for (let i = 0; i < units.length; i++) {
+        const unit = units[i];
+        setAnalyzeProg(`分析中…（${unit.title}）`);
+        let explanation =
+          rows[i]?.explanation ?? (await getLatestExplanation(unit.id));
+        const progress = rows[i]?.progress ?? null;
+        const pd = practiceData[unit.id];
+
+        // 1) 第 3 段解釋的 AI 判讀（理解型 / 複述型）——只補還沒判讀過的
+        if (
+          explanation &&
+          explanation.studentText.trim().length >= 2 &&
+          !explanation.aiFeedback
+        ) {
+          const res = await requestAiFeedback({
+            unitId: unit.id,
+            unitTitle: unit.title,
+            question: unit.section3_explain.prompt,
+            conceptHint: unit.section3_explain.aiConceptHint ?? "",
+            studentText: explanation.studentText,
+          });
+          if (res.ok && res.feedback && !res.fallbackToStatic) {
+            const updated: ExplanationRecord = {
+              ...explanation,
+              aiFeedback: res.feedback,
+              createdAt: new Date().toISOString(),
+            };
+            await saveExplanation(updated);
+            explanation = updated;
+            explained++;
+          }
+        }
+
+        // 2) 整個單元的吸收度診斷——沒診斷、或舊的是離線啟發式，就用 AI 重做
+        const variantResults = progress?.variantResults ?? {};
+        const variantQs = unit.section4_variants.questions;
+        const latestSession = pd?.sessions?.[0];
+        const signals: DiagnoseSignals = {
+          explanation: explanation?.studentText,
+          selfAssessment: explanation?.selfAssessment ?? null,
+          aiUnderstanding: explanation?.aiFeedback?.understanding_level ?? null,
+          variants: variantQs
+            .filter((q) => q.id in variantResults)
+            .map((q) => ({
+              question: q.question,
+              testingWhat: q.testingWhat,
+              likeTextbook: q.likeTextbook,
+              correct: variantResults[q.id] === true,
+            })),
+          challenge: (latestSession?.results ?? []).map((r) => ({
+            difficulty: r.difficulty,
+            conceptAspect: r.conceptAspect,
+            correct: r.mark === "correct",
+          })),
+        };
+        const hasSignal =
+          (signals.explanation?.trim().length ?? 0) > 0 ||
+          signals.variants.length > 0 ||
+          signals.challenge.length > 0;
+        const existing = diagnoses[unit.id];
+        if (hasSignal && (!existing || existing.source === "heuristic")) {
+          const conceptHint =
+            unit.section3_explain.aiConceptHint || unit.summary;
+          const res = await requestDiagnosis({
+            unitId: unit.id,
+            unitTitle: unit.title,
+            conceptHint,
+            signals,
+          });
+          if (res.ok && res.diagnosis && !res.fallbackToStatic) {
+            await saveDiagnosis({
+              unitId: unit.id,
+              diagnosis: res.diagnosis,
+              source: "ai",
+              signals,
+              createdAt: new Date().toISOString(),
+            });
+            diagnosedAi++;
+          } else if (!existing) {
+            // AI 連不上、又還沒有任何診斷 → 至少存一筆本地啟發式，不要留白
+            await saveDiagnosis({
+              unitId: unit.id,
+              diagnosis: heuristicDiagnosis(signals),
+              source: "heuristic",
+              signals,
+              createdAt: new Date().toISOString(),
+            });
+            diagnosedHeuristic++;
+          }
+        }
       }
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
+      await loadAll();
+      const parts: string[] = [];
+      if (explained) parts.push(`${explained} 筆解釋判讀`);
+      if (diagnosedAi) parts.push(`${diagnosedAi} 個單元 AI 診斷`);
+      if (diagnosedHeuristic) parts.push(`${diagnosedHeuristic} 個單元離線診斷`);
+      setAnalyzeState("done");
+      setAnalyzeMsg(
+        parts.length > 0
+          ? `完成：${parts.join("、")}`
+          : "目前的紀錄都已經分析過了",
+      );
+    } catch (e) {
+      setAnalyzeState("error");
+      setAnalyzeMsg(String(e));
+    } finally {
+      setAnalyzeProg("");
+    }
+  }
 
   async function handleSync() {
     setSyncState("syncing");
@@ -245,6 +374,54 @@ export default function ParentPage() {
           </p>
         )}
       </div>
+
+      {/* 用 AI 分析目前已存在、但還沒判讀過的答案 */}
+      {loaded && anyData && (
+        <div className="mt-4 rounded-xl border bg-card px-5 py-4">
+          <p className="text-sm font-medium">用 AI 分析目前的答案</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            把孩子已經寫過、但還沒經過 AI 判讀的解釋與單元表現送給 AI，分析結果會直接顯示在下面各單元。
+          </p>
+          <div className="mt-3 flex items-center gap-3">
+            <button
+              onClick={handleAnalyzeAll}
+              disabled={analyzeState === "analyzing"}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                analyzeState === "analyzing"
+                  ? "cursor-not-allowed bg-secondary text-muted-foreground"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90",
+              )}
+            >
+              {analyzeState === "analyzing" ? (
+                <>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground" />
+                  {analyzeProg || "分析中…"}
+                </>
+              ) : (
+                <>
+                  <Wand2 className="h-4 w-4" />
+                  {analyzeState === "done"
+                    ? "再分析一次"
+                    : "用 AI 分析目前的答案"}
+                </>
+              )}
+            </button>
+            {analyzeMsg && (
+              <span
+                className={cn(
+                  "text-sm",
+                  analyzeState === "error"
+                    ? "text-destructive"
+                    : "text-correct",
+                )}
+              >
+                {analyzeMsg}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {!loaded ? (
         <div className="mt-10 text-center text-muted-foreground">讀取中…</div>
@@ -475,6 +652,11 @@ function ExplanationBlock({
           {aiFb.followup_question && (
             <p className="text-sm text-muted-foreground">
               追問：{aiFb.followup_question}
+            </p>
+          )}
+          {aiFb.encouragement && (
+            <p className="text-sm text-muted-foreground">
+              給孩子：{aiFb.encouragement}
             </p>
           )}
         </div>

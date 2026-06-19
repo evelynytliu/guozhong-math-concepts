@@ -60,9 +60,10 @@ export async function callGemini({
       generationConfig: {
         // 直接要 JSON 物件，不會包 markdown 程式碼框（各 route 的 parser 仍會容錯）。
         responseMimeType: "application/json",
-        // 給足空間：2.5 Flash 預設會「思考」，思考 token 也算在輸出額度裡，
-        // 留 4096 讓「思考 + 那個小 JSON」都裝得下，不會被截斷。免費版輸出不另計費。
-        maxOutputTokens: 4096,
+        // 給足空間：2.5 Flash 預設會「思考」，思考 token 也算在輸出額度裡。
+        // 留 8192 讓「思考（有時上千 token）+ 那個小 JSON」都裝得下，不會被截斷。
+        // 免費版輸出不另計費，放寬無妨；不寫版本相關的 thinkingConfig 以相容 2.5 / 3.x。
+        maxOutputTokens: 8192,
       },
     }),
     signal,
