@@ -10,6 +10,8 @@ const MAX_SESSIONS = 5;
 
 // 與其他專案分開的資料表名稱（沿用 mathconcept_ 前綴）
 const TABLE_PRACTICE = "mathconcept_practice";
+// 每一輪變形題挑戰的「永久存檔」（append-only，不截斷、不覆蓋），供長期分析用。
+const TABLE_PRACTICE_SESSIONS = "mathconcept_practice_sessions";
 
 export interface DrillEntry {
   answer: string;
@@ -72,6 +74,15 @@ interface PracticeRow {
   challenge_rounds: number | null;
 }
 
+interface PracticeSessionArchiveRow {
+  unit_id: string;
+  session_id: string | null;
+  results: ChallengeQuestionResult[] | null;
+  correct: number | null;
+  total: number | null;
+  created_at: string;
+}
+
 function rowToPractice(r: PracticeRow): UnitPracticeData {
   return {
     drill: r.drill ?? {},
@@ -97,6 +108,29 @@ function upsertPracticeToCloud(unitId: string, data: UnitPracticeData) {
       },
       { onConflict: "unit_id" },
     )
+    .then(
+      () => {},
+      () => {},
+    );
+}
+
+// append-only：把單獨一輪變形題挑戰永久存檔（不截斷、不覆蓋）。
+// 這是長期分析的「完整資料」來源；mathconcept_practice 只留最近幾輪供顯示。
+function appendPracticeSessionToCloud(unitId: string, session: ChallengeSession) {
+  if (!isSupabaseEnabled) return;
+  const sb = getSupabase();
+  if (!sb) return;
+  const correct = session.results.filter((r) => r.mark === "correct").length;
+  void sb
+    .from(TABLE_PRACTICE_SESSIONS)
+    .insert({
+      unit_id: unitId,
+      session_id: session.sessionId,
+      results: session.results,
+      correct,
+      total: session.results.length,
+      created_at: session.savedAt,
+    })
     .then(
       () => {},
       () => {},
@@ -136,6 +170,8 @@ export function saveChallengeSession(
   store[unitId] = unit;
   lsWrite(store);
   upsertPracticeToCloud(unitId, unit);
+  // 同時把這一輪永久存檔（不受最近 5 輪上限影響），供長期分析。
+  appendPracticeSessionToCloud(unitId, session);
 }
 
 // ─── 摘要（給首頁卡片顯示「練習過沒、做了幾次」用） ──────────────────────────
@@ -198,6 +234,38 @@ export async function getAllPracticeDataCloud(): Promise<Store> {
     }
   }
   return lsRead();
+}
+
+// 變形題挑戰的「完整歷史」（所有輪次、不截斷）。供日後長期分析 / 成長報告用，
+// 與 getAllPracticeDataCloud（只給最近幾輪顯示）分工。
+export interface PracticeSessionRecord {
+  unitId: string;
+  sessionId: string | null;
+  results: ChallengeQuestionResult[];
+  correct: number;
+  total: number;
+  createdAt: string;
+}
+
+export async function getAllPracticeSessionsCloud(): Promise<
+  PracticeSessionRecord[]
+> {
+  if (!isSupabaseEnabled) return [];
+  const sb = getSupabase();
+  if (!sb) return [];
+  const { data, error } = await sb
+    .from(TABLE_PRACTICE_SESSIONS)
+    .select("unit_id, session_id, results, correct, total, created_at")
+    .order("created_at", { ascending: false });
+  if (error || !data) return [];
+  return (data as PracticeSessionArchiveRow[]).map((r) => ({
+    unitId: r.unit_id,
+    sessionId: r.session_id,
+    results: r.results ?? [],
+    correct: r.correct ?? 0,
+    total: r.total ?? 0,
+    createdAt: r.created_at,
+  }));
 }
 
 // 把本機練習資料整批推上雲端（家長頁「上傳到雲端」按鈕的 backfill 用）。

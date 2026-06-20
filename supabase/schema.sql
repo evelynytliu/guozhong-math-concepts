@@ -56,6 +56,21 @@ create table if not exists public.mathconcept_practice (
   updated_at timestamptz not null default now()
 );
 
+-- 每一輪變形題挑戰的「永久存檔」（append-only，不截斷、不覆蓋），供長期分析。
+-- mathconcept_practice 只留最近 5 輪供 resume / 家長頁顯示；這張表保留全部歷史。
+create table if not exists public.mathconcept_practice_sessions (
+  id uuid primary key default gen_random_uuid(),
+  unit_id text not null,
+  session_id text,
+  results jsonb not null default '[]'::jsonb,
+  correct int not null default 0,
+  total int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists mathconcept_practice_sessions_unit_idx
+  on public.mathconcept_practice_sessions (unit_id, created_at desc);
+
 -- 螺旋複習：每做完一輪記一列（checkpoint_id 對應課表檢核點 rA/rB/rC，自由練習為 null）
 create table if not exists public.mathconcept_spiral_sessions (
   id uuid primary key default gen_random_uuid(),
@@ -103,6 +118,7 @@ alter table public.mathconcept_explanations enable row level security;
 alter table public.mathconcept_homework_drafts enable row level security;
 alter table public.mathconcept_homework_vocab enable row level security;
 alter table public.mathconcept_practice enable row level security;
+alter table public.mathconcept_practice_sessions enable row level security;
 alter table public.mathconcept_spiral_sessions enable row level security;
 alter table public.mathconcept_diagnoses enable row level security;
 alter table public.mathconcept_course_progress enable row level security;
@@ -125,6 +141,10 @@ create policy "mathconcept allow all hw vocab" on public.mathconcept_homework_vo
 
 drop policy if exists "mathconcept allow all practice" on public.mathconcept_practice;
 create policy "mathconcept allow all practice" on public.mathconcept_practice
+  for all using (true) with check (true);
+
+drop policy if exists "mathconcept allow all practice sessions" on public.mathconcept_practice_sessions;
+create policy "mathconcept allow all practice sessions" on public.mathconcept_practice_sessions
   for all using (true) with check (true);
 
 drop policy if exists "mathconcept allow all spiral" on public.mathconcept_spiral_sessions;
