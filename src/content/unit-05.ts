@@ -13,7 +13,7 @@ import type { Unit } from "./types";
 export const unit05: Unit = {
   id: "unit-05",
   title: "一元一次方程式的解法（等量公理）",
-  order: 3,
+  order: 4,
   checkMode: "static",
   summary:
     "解方程式不是背「搬過去變號」，而是把方程式看成一個天平：兩邊永遠做一樣的事，天平就一直保持平衡。",

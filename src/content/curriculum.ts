@@ -5,7 +5,7 @@
 // 不新增單元內容，只是把單元串成課程；每一「學」步驟連到既有 /unit/[id]，
 // 每個「複」檢核點連到 /review?checkpoint=rX（沿用螺旋複習），最後一步是口頭總驗收。
 //
-// 順序沿用單元 order：負數→整數運算→方程式解法→應用題(AI)→因倍數→比例。
+// 順序沿用單元 order：負數→整數運算→指數科記→方程式解法→應用題(AI)→因倍數→分數運算→比例。
 
 import { getUnit } from "./index";
 import type { Unit } from "./types";
@@ -53,12 +53,21 @@ export const curriculum: CurriculumStep[] = [
     note: "讓「負負得正」是自己看出來的規律，不是背的口訣。",
   },
   {
+    id: "step-u7",
+    kind: "unit",
+    phase: PHASE_1,
+    title: "指數與科學記號",
+    unitId: "unit-07",
+    principle: "推導：把因數數一數",
+    note: "指數律不是背「指數相加」，是把因數攤開、數個數自己看出來的。",
+  },
+  {
     id: "step-rA",
     kind: "review",
     phase: PHASE_1,
-    title: "間隔複習 A：負數＋整數運算",
+    title: "間隔複習 A：負數＋整數運算＋指數",
     checkpointId: "rA",
-    reviewUnitIds: ["unit-01", "unit-04"],
+    reviewUnitIds: ["unit-01", "unit-04", "unit-07"],
     spacingDays: 3,
     principle: "間隔複習",
     note: "隔幾天用新題目混合練一遍——能在新外觀認出舊概念，才是真的記住。",
@@ -87,9 +96,9 @@ export const curriculum: CurriculumStep[] = [
     id: "step-rB",
     kind: "review",
     phase: PHASE_2,
-    title: "間隔複習 B：混 1～4 單元（偏應用題變形）",
+    title: "間隔複習 B：混前面單元（偏應用題變形）",
     checkpointId: "rB",
-    reviewUnitIds: ["unit-01", "unit-04", "unit-05", "unit-02"],
+    reviewUnitIds: ["unit-01", "unit-04", "unit-07", "unit-05", "unit-02"],
     spacingDays: 3,
     principle: "間隔＋交錯",
     note: "把前四個單元交錯著練，重點放在應用題換情境也抓得到等量關係。",
@@ -106,6 +115,15 @@ export const curriculum: CurriculumStep[] = [
     note: "用鋪磁磚（GCD）、公車同時發車（LCM）的情境，知道什麼時候用哪個。",
   },
   {
+    id: "step-u8",
+    kind: "unit",
+    phase: PHASE_3,
+    title: "分數的四則運算",
+    unitId: "unit-08",
+    principle: "推導：塊要一樣大／除＝乘倒數",
+    note: "加減為什麼通分、除法為什麼顛倒相乘，都是推出來的，不是背口訣（通分會用到剛學的 LCM）。",
+  },
+  {
     id: "step-u6",
     kind: "unit",
     phase: PHASE_3,
@@ -118,19 +136,21 @@ export const curriculum: CurriculumStep[] = [
     id: "step-rC",
     kind: "review",
     phase: PHASE_3,
-    title: "總複習：混全部 6 單元",
+    title: "總複習：混全部 8 單元",
     checkpointId: "rC",
     reviewUnitIds: [
       "unit-01",
       "unit-04",
+      "unit-07",
       "unit-05",
       "unit-02",
       "unit-03",
+      "unit-08",
       "unit-06",
     ],
     spacingDays: 4,
     principle: "交錯・驗收",
-    note: "六個單元全部混在一起練，能分辨「這題該用哪一招」就是融會貫通了。",
+    note: "八個單元全部混在一起練，能分辨「這題該用哪一招」就是融會貫通了。",
   },
 
   // ── 結業 ──

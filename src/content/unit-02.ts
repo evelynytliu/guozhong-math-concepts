@@ -14,7 +14,7 @@ import type { Unit } from "./types";
 export const unit02: Unit = {
   id: "unit-02",
   title: "一元一次方程式・應用題",
-  order: 4,
+  order: 5,
   checkMode: "ai",
   summary:
     "學會把一段文字『翻譯』成方程式：先找等量關係，再設未知數。重點是通用方法，不是背題型。",

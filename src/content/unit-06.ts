@@ -13,7 +13,7 @@ import type { Unit } from "./types";
 export const unit06: Unit = {
   id: "unit-06",
   title: "比與比例式",
-  order: 6,
+  order: 8,
   checkMode: "static",
   summary:
     "「交叉相乘」不是要背的口訣，而是等量公理推出來的結果。比的本質就是『每份一樣多／倍數關係』，懂了這個，比例題換什麼情境你都不怕。",

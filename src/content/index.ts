@@ -9,9 +9,11 @@ import { unit03 } from "./unit-03";
 import { unit04 } from "./unit-04";
 import { unit05 } from "./unit-05";
 import { unit06 } from "./unit-06";
+import { unit07 } from "./unit-07";
+import { unit08 } from "./unit-08";
 
 // 依 order 排序，首頁與單元頁都用這個順序
-// 七上自然進程：負數→整數運算→方程式解法→應用題→因倍數→比例
+// 七上自然進程：負數→整數運算→指數科記→方程式解法→應用題→因倍數→分數運算→比例
 export const units: Unit[] = [
   unit01,
   unit02,
@@ -19,6 +21,8 @@ export const units: Unit[] = [
   unit04,
   unit05,
   unit06,
+  unit07,
+  unit08,
 ].sort((a, b) => a.order - b.order);
 
 export function getUnit(id: string): Unit | undefined {
