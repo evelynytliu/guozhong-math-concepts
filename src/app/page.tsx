@@ -4,8 +4,13 @@ import * as React from "react";
 import Link from "next/link";
 import { units } from "@/content";
 import { homeworks } from "@/content/homework";
+import { wenyanWords } from "@/content/wenyan";
 import { VOCAB_TOTAL } from "@/content/homework/vocab";
 import { getAllProgress, type UnitProgress } from "@/lib/storage";
+import {
+  getAllWenyanProgress,
+  type WenyanProgress,
+} from "@/lib/wenyan-storage";
 import {
   getAllDrafts,
   getAllVocabProgress,
@@ -39,14 +44,18 @@ export default function HomePage() {
   const [practice, setPractice] = React.useState<
     Record<string, UnitPracticeData>
   >({});
+  const [wenyan, setWenyan] = React.useState<Record<string, WenyanProgress>>(
+    {},
+  );
   const [loaded, setLoaded] = React.useState(false);
 
   React.useEffect(() => {
     (async () => {
-      const [all, d, v] = await Promise.all([
+      const [all, d, v, wy] = await Promise.all([
         getAllProgress(),
         getAllDrafts(),
         getAllVocabProgress(),
+        getAllWenyanProgress(),
       ]);
       const map: Record<string, UnitProgress> = {};
       for (const p of all) map[p.unitId] = p;
@@ -54,6 +63,9 @@ export default function HomePage() {
       setDrafts(d);
       setVocab(v);
       setPractice(getAllPracticeData());
+      const wmap: Record<string, WenyanProgress> = {};
+      for (const p of wy) wmap[p.wordId] = p;
+      setWenyan(wmap);
       setLoaded(true);
     })();
   }, []);
@@ -173,6 +185,77 @@ export default function HomePage() {
                       <p className="mt-2 text-sm text-muted-foreground">
                         {st.label}
                       </p>
+                    )}
+                  </div>
+                  <ArrowRight className="mt-1 h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ── 國文・文言文（古今異義） ── */}
+      <section className="mb-10">
+        <div className="mb-1 flex items-center gap-2">
+          <h2 className="text-lg font-bold tracking-tight">
+            📖 國文・文言文（先修）
+          </h2>
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+            古今異義
+          </span>
+        </div>
+        <p className="mb-3 text-sm leading-relaxed text-muted-foreground">
+          同一個字，古代和現在意思常常不一樣。這裡不要你背對照表——
+          <strong className="text-foreground">帶你自己推出古義</strong>，
+          再用「沒看過的句子」驗證你是真懂還是在背。
+        </p>
+        <div className="space-y-3">
+          {wenyanWords.map((w) => {
+            const p = wenyan[w.id];
+            const reached = p?.sectionReached ?? 0;
+            const done = Boolean(p?.completedAt);
+            const started = reached > 0;
+            return (
+              <Link
+                key={w.id}
+                href={`/wenyan/${w.id}`}
+                className="group block rounded-2xl border bg-card p-5 shadow-sm transition-all hover:border-primary/40 hover:shadow-md"
+              >
+                <div className="flex items-start gap-4">
+                  <span className="grad-primary flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl font-black text-primary-foreground">
+                    {w.word.slice(0, 2)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        第 {w.order} 字・{w.word}
+                      </span>
+                      {done && (
+                        <span className="flex items-center gap-1 rounded-full bg-correct/15 px-2 py-0.5 text-xs font-medium text-correct">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          已完成
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-[15px] leading-relaxed text-muted-foreground">
+                      {w.teaser}
+                    </p>
+                    {loaded && started && !done && (
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>
+                            進行到：第 {reached} 拍 / 5
+                          </span>
+                          <span>{Math.round((reached / 5) * 100)}%</span>
+                        </div>
+                        <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                          <div
+                            className="h-full rounded-full bg-primary"
+                            style={{ width: `${(reached / 5) * 100}%` }}
+                          />
+                        </div>
+                      </div>
                     )}
                   </div>
                   <ArrowRight className="mt-1 h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />

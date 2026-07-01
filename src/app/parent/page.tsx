@@ -13,6 +13,11 @@ import {
 } from "@/lib/storage";
 import { syncHomeworkLocalToSupabase } from "@/lib/homework-storage";
 import {
+  syncWenyanLocalToSupabase,
+  getAllWenyanProgress,
+} from "@/lib/wenyan-storage";
+import { WenyanParentSummary } from "@/components/wenyan/wenyan-parent-summary";
+import {
   getAllPracticeDataCloud,
   syncPracticeLocalToSupabase,
   summarizePractice,
@@ -77,6 +82,7 @@ export default function ParentPage() {
     Record<string, DiagnosisRecord>
   >({});
   const [checkpointsDone, setCheckpointsDone] = React.useState(0);
+  const [hasWenyan, setHasWenyan] = React.useState(false);
   const [loaded, setLoaded] = React.useState(false);
   const [syncState, setSyncState] = React.useState<SyncState>("idle");
   const [syncMsg, setSyncMsg] = React.useState("");
@@ -87,12 +93,14 @@ export default function ParentPage() {
   const [analyzeProg, setAnalyzeProg] = React.useState("");
 
   const loadAll = React.useCallback(async () => {
-    const [allProgress, practice, diags, courseProg] = await Promise.all([
-      getAllProgress(),
-      getAllPracticeDataCloud(),
-      getAllLatestDiagnoses(),
-      getCourseProgress(),
-    ]);
+    const [allProgress, practice, diags, courseProg, wenyan] =
+      await Promise.all([
+        getAllProgress(),
+        getAllPracticeDataCloud(),
+        getAllLatestDiagnoses(),
+        getCourseProgress(),
+        getAllWenyanProgress(),
+      ]);
     const progressMap: Record<string, UnitProgress> = {};
     for (const p of allProgress) progressMap[p.unitId] = p;
 
@@ -109,6 +117,7 @@ export default function ParentPage() {
     setPracticeData(practice);
     setDiagnoses(diags);
     setCheckpointsDone(checkpoints);
+    setHasWenyan(wenyan.length > 0);
     setLoaded(true);
   }, []);
 
@@ -239,12 +248,15 @@ export default function ParentPage() {
     setSyncState("syncing");
     setSyncMsg("");
     try {
-      const [math, hw, prac] = await Promise.all([
+      const [math, hw, prac, wy] = await Promise.all([
         syncLocalToSupabase(),
         syncHomeworkLocalToSupabase(),
         syncPracticeLocalToSupabase(),
+        syncWenyanLocalToSupabase(),
       ]);
-      const errors = [math.error, hw.error, prac.error].filter(Boolean);
+      const errors = [math.error, hw.error, prac.error, wy.error].filter(
+        Boolean,
+      );
       if (errors.length > 0) {
         setSyncState("error");
         setSyncMsg(`部分失敗：${errors.join("；")}`);
@@ -254,7 +266,8 @@ export default function ParentPage() {
           math.explanationCount +
           hw.draftCount +
           hw.vocabCount +
-          prac.practiceCount;
+          prac.practiceCount +
+          wy.wenyanCount;
         setSyncState("done");
         setSyncMsg(
           total === 0
@@ -272,7 +285,8 @@ export default function ParentPage() {
   const anyData =
     rows.some((r) => r.progress !== null || r.explanation !== null) ||
     Object.keys(practiceData).length > 0 ||
-    Object.keys(diagnoses).length > 0;
+    Object.keys(diagnoses).length > 0 ||
+    hasWenyan;
 
   return (
     <div className="flex flex-1 flex-col py-8">
@@ -452,6 +466,9 @@ export default function ParentPage() {
           })}
         </div>
       )}
+
+      {/* 國文・文言文（古今異義）進度 */}
+      {loaded && <WenyanParentSummary />}
     </div>
   );
 }

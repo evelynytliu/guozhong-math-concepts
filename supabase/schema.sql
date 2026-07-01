@@ -103,6 +103,20 @@ create table if not exists public.mathconcept_diagnoses (
 create index if not exists mathconcept_diagnoses_unit_idx
   on public.mathconcept_diagnoses (unit_id, created_at desc);
 
+-- ── 國文・文言文「古今異義」進度 ──────────────────────
+-- 一個字一列：走到第幾拍、完成沒、變形題逐題對錯，
+-- 以及第 3 拍孩子寫的解釋＋自評（存同一列，家長頁好呈現）。
+create table if not exists public.mathconcept_wenyan_progress (
+  id uuid primary key default gen_random_uuid(),
+  word_id text not null unique,
+  section_reached int not null default 1,            -- 走到第幾拍（1-5）
+  completed_at timestamptz,                            -- 完成第 5 拍才填
+  variant_results jsonb not null default '{}'::jsonb, -- 第 4 拍變形題對錯
+  explanation text,                                   -- 第 3 拍孩子寫的解釋
+  self_assessment text,                               -- 'got_it' | 'partial' | 'cant_explain'
+  updated_at timestamptz not null default now()
+);
+
 -- 完整先修課表：每個步驟完成紀錄（學單元 / 複習檢核點 / 結業）
 create table if not exists public.mathconcept_course_progress (
   id uuid primary key default gen_random_uuid(),
@@ -122,6 +136,7 @@ alter table public.mathconcept_practice_sessions enable row level security;
 alter table public.mathconcept_spiral_sessions enable row level security;
 alter table public.mathconcept_diagnoses enable row level security;
 alter table public.mathconcept_course_progress enable row level security;
+alter table public.mathconcept_wenyan_progress enable row level security;
 
 drop policy if exists "mathconcept allow all progress" on public.mathconcept_progress;
 create policy "mathconcept allow all progress" on public.mathconcept_progress
@@ -157,4 +172,8 @@ create policy "mathconcept allow all diagnoses" on public.mathconcept_diagnoses
 
 drop policy if exists "mathconcept allow all course" on public.mathconcept_course_progress;
 create policy "mathconcept allow all course" on public.mathconcept_course_progress
+  for all using (true) with check (true);
+
+drop policy if exists "mathconcept allow all wenyan" on public.mathconcept_wenyan_progress;
+create policy "mathconcept allow all wenyan" on public.mathconcept_wenyan_progress
   for all using (true) with check (true);
