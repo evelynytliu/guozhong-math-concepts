@@ -18,6 +18,7 @@ export interface UnitProgress {
   sectionReached: number; // 走到第幾段（1-5）
   completedAt: string | null; // ISO 字串；完成第 5 段才填
   variantResults: Record<string, boolean>; // 第 4 段：questionId → 是否答對
+  updatedAt?: string | null; // 最後一次寫入時間；家長頁「最後活動」用（舊資料可能沒有）
 }
 
 export interface ExplanationRecord {
@@ -91,6 +92,7 @@ interface SbProgressRow {
   section_reached: number;
   completed_at: string | null;
   variant_results: Record<string, boolean> | null;
+  updated_at: string | null;
 }
 
 function rowToProgress(r: SbProgressRow): UnitProgress {
@@ -99,6 +101,7 @@ function rowToProgress(r: SbProgressRow): UnitProgress {
     sectionReached: r.section_reached,
     completedAt: r.completed_at,
     variantResults: r.variant_results ?? {},
+    updatedAt: r.updated_at,
   };
 }
 
@@ -114,7 +117,7 @@ export async function getProgress(
     if (sb) {
       const { data, error } = await sb
         .from(TABLE_PROGRESS)
-        .select("unit_id, section_reached, completed_at, variant_results")
+        .select("unit_id, section_reached, completed_at, variant_results, updated_at")
         .eq("unit_id", unitId)
         .maybeSingle();
       if (!error && data) return rowToProgress(data as SbProgressRow);
@@ -130,7 +133,7 @@ export async function getAllProgress(): Promise<UnitProgress[]> {
     if (sb) {
       const { data, error } = await sb
         .from(TABLE_PROGRESS)
-        .select("unit_id, section_reached, completed_at, variant_results");
+        .select("unit_id, section_reached, completed_at, variant_results, updated_at");
       if (!error && data)
         return (data as SbProgressRow[]).map(rowToProgress);
     }
@@ -139,15 +142,19 @@ export async function getAllProgress(): Promise<UnitProgress[]> {
 }
 
 export async function saveProgress(p: UnitProgress): Promise<void> {
+  // updated_at 資料表只有 default now()、沒有自動更新 trigger，
+  // 所以每次寫入都要自己蓋掉，「最後活動時間」才會準。
+  const stamped: UnitProgress = { ...p, updatedAt: new Date().toISOString() };
   if (isSupabaseEnabled) {
     const sb = getSupabase();
     if (sb) {
       const { error } = await sb.from(TABLE_PROGRESS).upsert(
         {
-          unit_id: p.unitId,
-          section_reached: p.sectionReached,
-          completed_at: p.completedAt,
-          variant_results: p.variantResults,
+          unit_id: stamped.unitId,
+          section_reached: stamped.sectionReached,
+          completed_at: stamped.completedAt,
+          variant_results: stamped.variantResults,
+          updated_at: stamped.updatedAt,
         },
         { onConflict: "unit_id" },
       );
@@ -156,7 +163,7 @@ export async function saveProgress(p: UnitProgress): Promise<void> {
     }
   }
   const all = lsReadProgress();
-  all[p.unitId] = p;
+  all[stamped.unitId] = stamped;
   lsWriteProgress(all);
 }
 
@@ -199,6 +206,7 @@ export async function syncLocalToSupabase(): Promise<{
         section_reached: p.sectionReached,
         completed_at: p.completedAt,
         variant_results: p.variantResults,
+        updated_at: p.updatedAt ?? new Date().toISOString(),
       })),
       { onConflict: "unit_id" },
     );

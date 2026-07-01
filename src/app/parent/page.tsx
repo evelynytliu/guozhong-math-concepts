@@ -51,6 +51,7 @@ import {
   GraduationCap,
   ArrowRight,
   Wand2,
+  Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +71,68 @@ const SELF_ASSESSMENT_LABEL: Record<string, { text: string; color: string }> = {
 };
 
 type SyncState = "idle" | "syncing" | "done" | "error";
+
+// ─── 最後活動時間 ────────────────────────────────────────────────────────────
+// 家長最常問的是「他這兩天到底有沒有碰」。把一個單元所有會留下時間戳的動作
+// （進度推進、寫解釋、練習區作答、診斷）取最大值，就是這個單元的最後活動時間。
+
+function latestTimestamp(cands: (string | null | undefined)[]): string | null {
+  let best: string | null = null;
+  let bestT = -Infinity;
+  for (const c of cands) {
+    if (!c) continue;
+    const t = Date.parse(c);
+    if (!Number.isNaN(t) && t > bestT) {
+      bestT = t;
+      best = c;
+    }
+  }
+  return best;
+}
+
+function lastActivityOf(
+  progress: UnitProgress | null,
+  explanation: ExplanationRecord | null,
+  practice: UnitPracticeData | null,
+  diagnosis: DiagnosisRecord | null,
+): string | null {
+  return latestTimestamp([
+    progress?.updatedAt,
+    progress?.completedAt,
+    explanation?.createdAt,
+    diagnosis?.createdAt,
+    ...Object.values(practice?.drill ?? {}).map((d) => d.updatedAt),
+    ...(practice?.sessions ?? []).map((s) => s.savedAt),
+  ]);
+}
+
+// 「今天 13:39」「昨天 20:15」「3 天前（6/28 11:02）」——近兩天內算 recent，用主色標出。
+function formatActivity(iso: string): { text: string; recent: boolean } {
+  const d = new Date(iso);
+  const now = new Date();
+  const dayStart = (x: Date) =>
+    new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diffDays = Math.round((dayStart(now) - dayStart(d)) / 86_400_000);
+  const time = d.toLocaleTimeString("zh-TW", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const date = d.toLocaleDateString("zh-TW", { month: "numeric", day: "numeric" });
+  if (diffDays <= 0) return { text: `今天 ${time}`, recent: true };
+  if (diffDays === 1) return { text: `昨天 ${time}`, recent: true };
+  if (diffDays < 7)
+    return { text: `${diffDays} 天前（${date} ${time}）`, recent: false };
+  return { text: `${date} ${time}`, recent: false };
+}
+
+function unitStatusText(progress: UnitProgress | null, practiced: boolean): string {
+  if (progress?.completedAt) return "已完成";
+  const reached = progress?.sectionReached ?? 0;
+  if (reached > 0) return `進行到第 ${reached} 段・${SECTION_NAMES[reached - 1]}`;
+  if (practiced) return "做了練習區";
+  return "有紀錄";
+}
 
 export default function ParentPage() {
   const [rows, setRows] = React.useState<
@@ -288,6 +351,29 @@ export default function ParentPage() {
     Object.keys(diagnoses).length > 0 ||
     hasWenyan;
 
+  // 每個單元的最後活動時間，以及全站最近的一次（給頂端「最近一次活動」橫幅）
+  const lastActivities = units.map((u, i) =>
+    lastActivityOf(
+      rows[i]?.progress ?? null,
+      rows[i]?.explanation ?? null,
+      practiceData[u.id] ?? null,
+      diagnoses[u.id] ?? null,
+    ),
+  );
+  let latestUnitIdx = -1;
+  for (let i = 0; i < lastActivities.length; i++) {
+    const ts = lastActivities[i];
+    if (!ts) continue;
+    if (
+      latestUnitIdx === -1 ||
+      Date.parse(ts) > Date.parse(lastActivities[latestUnitIdx]!)
+    ) {
+      latestUnitIdx = i;
+    }
+  }
+  const latestUnit = latestUnitIdx >= 0 ? units[latestUnitIdx] : null;
+  const latestTs = latestUnitIdx >= 0 ? lastActivities[latestUnitIdx]! : null;
+
   return (
     <div className="flex flex-1 flex-col py-8">
       {/* 頁頭 */}
@@ -304,6 +390,57 @@ export default function ParentPage() {
       <p className="mt-1 text-sm text-muted-foreground">
         孩子的學習紀錄、每個單元完成後的 AI 吸收度診斷。
       </p>
+
+      {/* 最近一次活動：一眼回答「他這兩天到底有沒有碰」 */}
+      {loaded && latestUnit && latestTs && (() => {
+        const fa = formatActivity(latestTs);
+        const status = unitStatusText(
+          rows[latestUnitIdx]?.progress ?? null,
+          summarizePractice(
+            practiceData[latestUnit.id],
+            latestUnit.practiceZone?.drill.questions.length ?? 0,
+          ).practiced,
+        );
+        return (
+          <div
+            className={cn(
+              "mt-4 flex items-center gap-3 rounded-xl border px-4 py-3",
+              fa.recent
+                ? "border-primary/30 bg-primary/5"
+                : "border-border bg-card",
+            )}
+          >
+            <span
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                fa.recent
+                  ? "bg-primary/15 text-primary"
+                  : "bg-secondary text-muted-foreground",
+              )}
+            >
+              <Clock className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-muted-foreground">
+                最近一次活動
+              </p>
+              <p className="truncate text-sm">
+                <span
+                  className={cn(
+                    "font-semibold",
+                    fa.recent ? "text-primary" : "text-foreground",
+                  )}
+                >
+                  {fa.text}
+                </span>
+                <span className="text-muted-foreground">・</span>
+                {latestUnit.title}
+                <span className="text-muted-foreground">（{status}）</span>
+              </p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 完整先修課表進度總覽 */}
       <Link
@@ -461,6 +598,7 @@ export default function ParentPage() {
                 explanation={explanation ?? null}
                 practice={pd ?? null}
                 diagnosis={diag}
+                lastActivity={lastActivities[i]}
               />
             );
           })}
@@ -479,12 +617,14 @@ function UnitCard({
   explanation,
   practice,
   diagnosis,
+  lastActivity,
 }: {
   unit: (typeof units)[number];
   progress: UnitProgress | null;
   explanation: ExplanationRecord | null;
   practice: UnitPracticeData | null;
   diagnosis: DiagnosisRecord | null;
+  lastActivity: string | null;
 }) {
   const reached = progress?.sectionReached ?? 0;
   const completed = Boolean(progress?.completedAt);
@@ -513,6 +653,22 @@ function UnitCard({
             單元 {unit.order}
           </p>
           <h2 className="text-lg font-semibold">{unit.title}</h2>
+          {lastActivity && (() => {
+            const fa = formatActivity(lastActivity);
+            return (
+              <p
+                className={cn(
+                  "mt-0.5 flex items-center gap-1 text-xs",
+                  fa.recent
+                    ? "font-medium text-primary"
+                    : "text-muted-foreground",
+                )}
+              >
+                <Clock className="h-3 w-3" />
+                最後活動：{fa.text}
+              </p>
+            );
+          })()}
         </div>
         {completed ? (
           <span className="flex items-center gap-1.5 rounded-full bg-correct/15 px-3 py-1 text-sm font-medium text-correct">
