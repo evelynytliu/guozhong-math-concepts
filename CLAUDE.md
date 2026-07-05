@@ -1,8 +1,15 @@
-# 國中數學「概念理解」互動教材網站 — CLAUDE.md
+# 國一「五科學習基地」互動教材網站 — CLAUDE.md
+
+> ⚡ **2026-07 大改版：從「數學概念網站」擴充成「國一五科學習站」。**
+> 原本的數學五段式單元、文言文、暑假作業全部保留、設計不動；上面多包了一層
+> **科目（subjects）架構**與**通用線上題組（quizzes）引擎**，讓五科（國文/數學/英文/自然/社會）
+> 並存、可持續擴充。新的頂層結構見本檔最後「五科學習站架構（2026 改版）」一節——
+> **改內容前先讀那一節**，它說明科目、題組、章節地圖怎麼運作。
+> 出題／加內容的實際操作步驟在 `AUTHORING.md`。
 
 ## 專案目的
 
-為一位即將升國一的孩子建立**數學概念理解教材網站**。
+為一位即將升國一的孩子建立**五科學習站**（起點是數學概念理解，已擴充為全科）。
 
 **這個孩子的核心問題（這份規格的設計起點）：**
 > 習慣「背公式、看題型反射解題」。在熟悉題型上表現好，但題目稍微變化（換問法、換情境、多一個轉折）就會做錯。根本原因是「解題時腦中跑的是檢索記憶，而不是推理概念」。
@@ -229,3 +236,60 @@
 - AI 環節**只**在 `check_mode === 'ai'` 的單元啟用，不要每個單元都接 AI（會浪費訂閱額度）。
 - AI 呼叫一律要 try/catch + 退回靜態模式，不能讓孩子因為 AI 出錯就卡住。
 - 內容（推導步驟、變形題、參考解釋）可以先放在程式碼裡的結構化資料（例如每個單元一個 `.ts` 設定檔），方便日後手動增修，不用一開始就做後台編輯介面。
+
+---
+
+## 五科學習站架構（2026 改版）
+
+> 這一層是把原本的數學/文言文/暑假作業「三軌」，往上收斂成「五科學習站」。
+> 五段式數學單元、文言文五拍、暑假作業的設計**完全不動**——只是被歸類到科目底下，
+> 並新增一套「通用線上題組」讓每一科都能掛線上題目。
+
+### 科目（一級架構）— `src/content/subjects.ts`
+- 五科：`chinese`（國文・翰林）、`math`（數學・康軒）、`english`（英文・翰林）、
+  `science`（自然/生物・翰林）、`social`（社會・康軒）。教材版本存在自動記憶 `textbook-versions`。
+- 每科有：主題色（`color.main/soft/grad`，用 inline style 避免 Tailwind purge 動態 class）、
+  出版社、對孩子說的一句 `tagline`、以及**章節地圖 `topics`**（依課本目錄整理，
+  每筆 `{ id, semester, title }`）。章節地圖用來在科目頁顯示「哪些章已有內容」，
+  也讓題組用穩定的 `topicId` 掛上去。**topicId 被題目掛過就別改。**
+
+### 通用線上題組（新引擎）— `src/content/quizzes/`
+- 這是「做線上題目」的核心，五科共用。型別 `QuizSet`／`QuizQuestion` 在 `quizzes/types.ts`：
+  每題有 `type`（choice/text）、`explanation`（詳解）、`concept`（考什麼概念）。
+- **設計魂延續 CLAUDE.md 起點**：答完一定看得到「為什麼」＋「這題在考什麼」；
+  **答錯的題自動回鍋**（跟英文單字 drill 同精神），整組每題都對過才完成；
+  「一次就對」的題數才是實力分，跟「回鍋後全對」分開呈現。
+- 引擎元件 `src/components/quiz-player.tsx`，路由 `/quiz/[id]`，註冊表 `quizzes/index.ts`。
+- 加題組：在 `quizzes/` 寫一個 `.ts`、註冊進陣列即可（步驟見 `AUTHORING.md`）。
+
+### 內容如何歸到科目 — `src/lib/subject-content.ts`
+- 純資料整理：把數學單元、文言字、題組、暑假作業全部歸到某個 `SubjectId`，
+  產出統一的 `ContentItem`，給首頁科目卡與科目頁 `/subject/[id]` 用。
+- 暑假作業的科目對應寫在這裡的 `HOMEWORK_SUBJECT`（作業 id → 科目）。
+
+### 頁面結構（改版後）
+- `/`（首頁）：**五科 hub**——上方三個小統計（等級感）、五張科目卡、
+  數學專屬的「課表/螺旋複習」進階入口、暑假作業降為次要入口。舊的作業列表移到 `/homework`。
+- `/subject/[id]`：單科學習基地——科目色頭 + 該科所有內容清單 + 課本章節地圖（點亮已涵蓋章節）。
+- `/quiz/[id]`：通用題組答題。
+- `/parent`：家長頁新增 `QuizParentSummary`（跨五科答題狀況＋最常答錯的概念），
+  原本的數學單元 AI 診斷、文言文摘要保留。
+- 其餘既有路由（`/unit/[id]`、`/wenyan/[id]`、`/homework/[id]`、`/course`、`/review`）不變。
+
+### 儲存層
+- 新增 `src/lib/quiz-storage.ts`：本機彙總 `QuizRecord`（resume/顯示進度）＋
+  雲端 append-only 存檔（Supabase `mathconcept_quiz_attempts`，家長頁看歷史與弱概念）。
+  同一套「localStorage 優先、Supabase 可選、失敗退回本機」策略。
+
+### 內容後台＝Claude Code 桌機版（重要）
+- **出題／加教材的後台就是 Claude Code 桌機版**，不做網頁 CMS。
+  理由：題目品質要用 Claude（非 Gemini）；內容是版本控管的 `.ts` 檔，diff 可回復。
+- 出題後**一定跑 `npm run validate`**（`scripts/validate-content.mts`）：
+  檢查 id 撞號、選項索引超範圍、答案不在選項、掛到不存在的科目/章節。綠燈才 push。
+- 分工：**出題（貴、要品質）用 Claude Code**；**孩子答題時的即時分析（量大、要便宜）用 Gemini**
+  （`/api/explain`、`/api/diagnose`、`/api/coach` 維持不變）。
+- 完整操作手冊：`AUTHORING.md`。
+
+### 部署
+- 維持 Vercel 線上版（`junior-high-lab.vercel.app`）；靜態內容 + Gemini 即時分析。
+  在家用 Claude Code 桌機版出題 → commit → push → 自動部署。

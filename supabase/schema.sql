@@ -117,6 +117,22 @@ create table if not exists public.mathconcept_wenyan_progress (
   updated_at timestamptz not null default now()
 );
 
+-- ── 線上題組（五科共用）答題存檔 ──────────────────────
+-- 每完成一輪題組 append 一筆（append-only，供家長頁看歷史與弱概念分析）。
+-- first_try_correct = 第一次作答就對的題數（真實實力），total = 題組題數，
+-- wrong_question_ids = 曾答錯過的題目 id（對回 concept 做弱點彙整）。
+create table if not exists public.mathconcept_quiz_attempts (
+  id uuid primary key default gen_random_uuid(),
+  quiz_id text not null,
+  first_try_correct int not null default 0,
+  total int not null default 0,
+  wrong_question_ids jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists mathconcept_quiz_attempts_quiz_idx
+  on public.mathconcept_quiz_attempts (quiz_id, created_at desc);
+
 -- 完整先修課表：每個步驟完成紀錄（學單元 / 複習檢核點 / 結業）
 create table if not exists public.mathconcept_course_progress (
   id uuid primary key default gen_random_uuid(),
@@ -137,6 +153,7 @@ alter table public.mathconcept_spiral_sessions enable row level security;
 alter table public.mathconcept_diagnoses enable row level security;
 alter table public.mathconcept_course_progress enable row level security;
 alter table public.mathconcept_wenyan_progress enable row level security;
+alter table public.mathconcept_quiz_attempts enable row level security;
 
 drop policy if exists "mathconcept allow all progress" on public.mathconcept_progress;
 create policy "mathconcept allow all progress" on public.mathconcept_progress
@@ -176,4 +193,8 @@ create policy "mathconcept allow all course" on public.mathconcept_course_progre
 
 drop policy if exists "mathconcept allow all wenyan" on public.mathconcept_wenyan_progress;
 create policy "mathconcept allow all wenyan" on public.mathconcept_wenyan_progress
+  for all using (true) with check (true);
+
+drop policy if exists "mathconcept allow all quiz attempts" on public.mathconcept_quiz_attempts;
+create policy "mathconcept allow all quiz attempts" on public.mathconcept_quiz_attempts
   for all using (true) with check (true);

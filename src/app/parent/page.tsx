@@ -17,6 +17,7 @@ import {
   getAllWenyanProgress,
 } from "@/lib/wenyan-storage";
 import { WenyanParentSummary } from "@/components/wenyan/wenyan-parent-summary";
+import { QuizParentSummary } from "@/components/quiz-parent-summary";
 import {
   getAllPracticeDataCloud,
   syncPracticeLocalToSupabase,
@@ -302,7 +303,7 @@ export default function ParentPage() {
       </div>
       <h1 className="text-2xl font-bold tracking-tight">家長檢視</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        孩子的學習紀錄、每個單元完成後的 AI 吸收度診斷。
+        孩子的五科學習紀錄：線上題目答題狀況、數學單元的 AI 吸收度診斷、文言文進度。
       </p>
 
       {/* 完整先修課表進度總覽 */}
@@ -440,10 +441,9 @@ export default function ParentPage() {
       {!loaded ? (
         <div className="mt-10 text-center text-muted-foreground">讀取中…</div>
       ) : !anyData ? (
-        <div className="mt-10 rounded-xl border bg-card p-8 text-center">
-          <p className="text-muted-foreground">還沒有任何學習紀錄。</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            孩子開始做題目之後，紀錄會出現在這裡。
+        <div className="mt-6 rounded-xl border border-dashed bg-card/60 p-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            數學單元（五段式）還沒有紀錄——下面若有線上題目的答題狀況，代表孩子已經開始練了。
           </p>
         </div>
       ) : (
@@ -466,6 +466,9 @@ export default function ParentPage() {
           })}
         </div>
       )}
+
+      {/* 各科線上題目答題狀況（跨五科） */}
+      {loaded && <QuizParentSummary />}
 
       {/* 國文・文言文（古今異義）進度 */}
       {loaded && <WenyanParentSummary />}
