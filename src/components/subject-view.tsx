@@ -52,11 +52,13 @@ export function SubjectView({
     setQuizRecords(map);
   }, [items]);
 
-  // 章節地圖：哪些 topicId 已有內容
-  const coveredTopics = React.useMemo(() => {
-    const s = new Set<string>();
-    for (const it of items) if (it.topicId) s.add(it.topicId);
-    return s;
+  // 章節地圖：每個 topicId → 第一個對應內容的連結（點亮的章節可以直接點進去）
+  const topicHref = React.useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const it of items) {
+      if (it.topicId && !m[it.topicId]) m[it.topicId] = it.href;
+    }
+    return m;
   }, [items]);
 
   const semesters = ["先修", "7上", "7下"] as const;
@@ -196,23 +198,27 @@ export function SubjectView({
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {topics.map((t) => {
-                    const covered = coveredTopics.has(t.id);
+                    const href = topicHref[t.id];
+                    if (href) {
+                      // 已涵蓋：做成可點的連結，直接跳到該章節的內容
+                      return (
+                        <Link
+                          key={t.id}
+                          href={href}
+                          className="rounded-xl border border-transparent px-3 py-2 text-sm font-medium text-white shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md"
+                          style={{ background: subject.color.main }}
+                        >
+                          ✓ {t.title}
+                        </Link>
+                      );
+                    }
+                    // 未涵蓋：純顯示（灰色、不可點）
                     return (
                       <span
                         key={t.id}
-                        className={cn(
-                          "rounded-xl border px-3 py-2 text-sm transition-colors",
-                          covered
-                            ? "border-transparent font-medium text-white"
-                            : "border-dashed bg-card/40 text-muted-foreground",
-                        )}
-                        style={
-                          covered
-                            ? { background: subject.color.main }
-                            : undefined
-                        }
+                        className="cursor-default rounded-xl border border-dashed bg-card/40 px-3 py-2 text-sm text-muted-foreground"
+                        title="這個章節之後會補上互動內容"
                       >
-                        {covered && "✓ "}
                         {t.title}
                       </span>
                     );
