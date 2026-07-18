@@ -10,22 +10,44 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { AdaptiveDpr, Html } from "@react-three/drei";
 import * as THREE from "three";
 import type { HistoryScene, HistoryTerm, StageCamera } from "@/content/history/types";
+import { ThreeWDiorama } from "./three/threew-diorama";
 import { CaveDiorama } from "./three/cave-diorama";
 import { AustronesianDiorama } from "./three/austronesian-diorama";
 import { SailDiorama } from "./three/sail-diorama";
 import { FortsDiorama } from "./three/forts-diorama";
 import { KoxingaDiorama } from "./three/koxinga-diorama";
+import { ChurchDiorama } from "./three/church-diorama";
+import { ConflictDiorama } from "./three/conflict-diorama";
+import { CrossingDiorama } from "./three/crossing-diorama";
+import { ReformDiorama } from "./three/reform-diorama";
+import { WaterDiorama } from "./three/water-diorama";
+import { PortsDiorama } from "./three/ports-diorama";
+import { TradeDiorama } from "./three/trade-diorama";
+import { FrontierDiorama } from "./three/frontier-diorama";
+import { MackayDiorama } from "./three/mackay-diorama";
+import { PingpuDiorama } from "./three/pingpu-diorama";
 import { PostFX } from "./three/fx";
 
 const DIORAMAS: Record<
   string,
   React.ComponentType<{ stageIndex: number }>
 > = {
+  "s0-three-w": ThreeWDiorama,
   "s1-cave": CaveDiorama,
   "s1-austronesian": AustronesianDiorama,
   "s2-age-of-sail": SailDiorama,
   "s2-two-forts": FortsDiorama,
   "s2-koxinga": KoxingaDiorama,
+  "s3-church": ChurchDiorama,
+  "s3-conflict": ConflictDiorama,
+  "s4-crossing": CrossingDiorama,
+  "s4-reform": ReformDiorama,
+  "s5-water": WaterDiorama,
+  "s5-ports": PortsDiorama,
+  "s5-trade": TradeDiorama,
+  "s6-frontier": FrontierDiorama,
+  "s6-mackay": MackayDiorama,
+  "s6-pingpu": PingpuDiorama,
 };
 
 /* 鏡頭平滑飛行：往目標位置與注視點做指數趨近，

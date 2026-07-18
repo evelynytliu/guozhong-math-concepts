@@ -88,9 +88,9 @@ export default function HistoryHubPage() {
                   className="rounded-lg px-2 py-0.5 text-sm text-white"
                   style={{ background: "hsl(202 82% 45%)" }}
                 >
-                  第 {plan.lesson} 課
+                  {plan.lesson === 0 ? "序章" : `第 ${plan.lesson} 課`}
                 </span>
-                {plan.title}
+                {plan.lesson === 0 ? "學習歷史的 3 個 W" : plan.title}
               </h2>
 
               {scenes.length > 0 ? (

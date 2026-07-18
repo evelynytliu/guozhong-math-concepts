@@ -96,10 +96,15 @@ export function contentForSubject(subjectId: SubjectId): ContentItem[] {
   }
 
   if (subjectId === "social") {
-    // 歷史 3D 場景（課 → 章節地圖：第1課=史前/原住民、第2課=大航海）
+    // 歷史 3D 場景（課 → 章節地圖：0-1=史前/原住民、2-3=大航海、4-6=清帝國）
     const HISTORY_TOPIC: Record<number, string> = {
+      0: "social-his-1",
       1: "social-his-1",
       2: "social-his-2",
+      3: "social-his-2",
+      4: "social-his-3",
+      5: "social-his-3",
+      6: "social-his-3",
     };
     for (const s of historyScenes) {
       items.push({

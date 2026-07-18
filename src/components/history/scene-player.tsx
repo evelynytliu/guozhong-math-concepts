@@ -262,39 +262,16 @@ export function ScenePlayer({ scene }: { scene: HistoryScene }) {
         </div>
       )}
 
-      {/* ── 名詞卡彈窗 ── */}
+      {/* ── 名詞卡彈窗（讀完 → 小測驗通過才能收卡） ── */}
       {openTerm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setOpenTerm(null)}
-        >
-          <div
-            className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-center text-5xl">{openTerm.emoji}</div>
-            <h3 className="mt-2 text-center text-2xl font-black tracking-tight">
-              {openTerm.term}
-            </h3>
-            <p className="mt-3 text-[15px] leading-relaxed text-stone-700">
-              {openTerm.explain}
-            </p>
-            <div className="mt-3 rounded-2xl bg-amber-50 p-3">
-              <div className="text-xs font-bold text-amber-700">🧠 記憶鉤</div>
-              <p className="mt-0.5 text-sm font-medium leading-relaxed text-amber-900">
-                {openTerm.hook}
-              </p>
-            </div>
-            <button
-              onClick={() => handleCollect(openTerm)}
-              className="mt-4 w-full rounded-xl bg-amber-500 py-2.5 text-base font-bold text-white shadow hover:bg-amber-600"
-            >
-              {collected.includes(openTerm.id)
-                ? "已經收藏了，關閉"
-                : "收下這張卡！"}
-            </button>
-          </div>
-        </div>
+        <TermCardModal
+          key={openTerm.id}
+          term={openTerm}
+          allTerms={allTerms}
+          alreadyCollected={collected.includes(openTerm.id)}
+          onCollect={() => handleCollect(openTerm)}
+          onClose={() => setOpenTerm(null)}
+        />
       )}
 
       {/* ── 名詞卡圖鑑 ── */}
@@ -344,6 +321,219 @@ export function ScenePlayer({ scene }: { scene: HistoryScene }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── 語音朗讀（Web Speech API，zh-TW） ── */
+function speak(text: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "zh-TW";
+  u.rate = 0.95;
+  window.speechSynthesis.speak(u);
+}
+function stopSpeaking() {
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+}
+
+/* ── 名詞卡彈窗：三階段防跳讀 ──
+   1) read：卡片內容＋依字數計算的閱讀倒數（倒數完才能進下一步）
+   2) check：小測驗「這張卡在說哪個名詞？」——答對才真的收卡，答錯回去重讀
+   3) 已收藏的卡直接自由閱覽（複習不設關卡） */
+function TermCardModal({
+  term,
+  allTerms,
+  alreadyCollected,
+  onCollect,
+  onClose,
+}: {
+  term: HistoryTerm;
+  allTerms: HistoryTerm[];
+  alreadyCollected: boolean;
+  onCollect: () => void;
+  onClose: () => void;
+}) {
+  const [phase, setPhase] = React.useState<"read" | "check">("read");
+  const [retry, setRetry] = React.useState(false);
+  const [picked, setPicked] = React.useState<string | null>(null);
+
+  // 閱讀秒數：依內容長度估（12 歲閱讀速度），重讀時縮短
+  const fullLen = term.explain.length + term.hook.length;
+  const readSecs = retry ? 3 : Math.min(9, Math.max(4, Math.round(fullLen / 14)));
+  const [secondsLeft, setSecondsLeft] = React.useState(readSecs);
+
+  React.useEffect(() => {
+    if (phase !== "read" || alreadyCollected) return;
+    setSecondsLeft(readSecs);
+    const timer = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) clearInterval(timer);
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, retry]);
+
+  React.useEffect(() => () => stopSpeaking(), []);
+
+  // 小測驗：把記憶鉤（或解釋）裡的名詞挖空，三選一
+  const quiz = React.useMemo(() => {
+    const others = allTerms.filter((t) => t.id !== term.id);
+    // 洗牌取 2 個混淆選項（用名詞長度+字元和當穩定隨機）
+    const shuffled = [...others].sort(
+      (a, b) =>
+        ((a.term.charCodeAt(0) * 31 + a.term.length * 7) % 97) -
+        ((b.term.charCodeAt(0) * 31 + b.term.length * 7) % 97),
+    );
+    const distractors = shuffled.slice(0, 2).map((t) => t.term);
+    const options = [term.term, ...distractors].sort(
+      (a, b) => ((a.charCodeAt(0) * 13) % 7) - ((b.charCodeAt(0) * 13) % 7),
+    );
+    let clozeText: string;
+    if (term.hook.includes(term.term)) {
+      clozeText = `「${term.hook.split(term.term).join("＿＿＿")}」`;
+    } else if (term.explain.includes(term.term)) {
+      const sentence =
+        term.explain.split("。").find((s) => s.includes(term.term)) ?? term.explain;
+      clozeText = `「${sentence.split(term.term).join("＿＿＿")}」`;
+    } else {
+      clozeText = `「${term.explain.slice(0, 46)}…」`;
+    }
+    return { clozeText, options };
+  }, [term, allTerms]);
+
+  const answered = picked !== null;
+  const isCorrect = picked === term.term;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={() => {
+        stopSpeaking();
+        onClose();
+      }}
+    >
+      <div
+        className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {phase === "read" && (
+          <>
+            <div className="text-center text-5xl">{term.emoji}</div>
+            <h3 className="mt-2 text-center text-2xl font-black tracking-tight">
+              {term.term}
+            </h3>
+            {retry && (
+              <p className="mt-1 text-center text-xs font-bold text-rose-500">
+                沒關係！再仔細看一次，等等再考你 💪
+              </p>
+            )}
+            <p className="mt-3 text-[15px] leading-relaxed text-stone-700">
+              {term.explain}
+            </p>
+            <div className="mt-3 rounded-2xl bg-amber-50 p-3">
+              <div className="text-xs font-bold text-amber-700">🧠 記憶鉤</div>
+              <p className="mt-0.5 text-sm font-medium leading-relaxed text-amber-900">
+                {term.hook}
+              </p>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() =>
+                  speak(`${term.term}。${term.explain}。記憶鉤：${term.hook}`)
+                }
+                className="shrink-0 rounded-xl border-2 border-sky-200 px-3 py-2.5 text-sm font-bold text-sky-700 hover:bg-sky-50"
+              >
+                🔊 唸給我聽
+              </button>
+              {alreadyCollected ? (
+                <button
+                  onClick={() => {
+                    stopSpeaking();
+                    onClose();
+                  }}
+                  className="flex-1 rounded-xl bg-emerald-500 py-2.5 text-base font-bold text-white shadow hover:bg-emerald-600"
+                >
+                  已收藏 ✓ 關閉
+                </button>
+              ) : (
+                <button
+                  disabled={secondsLeft > 0}
+                  onClick={() => {
+                    stopSpeaking();
+                    setPicked(null);
+                    setPhase("check");
+                  }}
+                  className="flex-1 rounded-xl bg-amber-500 py-2.5 text-base font-bold text-white shadow enabled:hover:bg-amber-600 disabled:bg-stone-300"
+                >
+                  {secondsLeft > 0
+                    ? `認真讀…（${secondsLeft}）`
+                    : "讀完了，考我！"}
+                </button>
+              )}
+            </div>
+          </>
+        )}
+
+        {phase === "check" && (
+          <>
+            <div className="text-center text-3xl">🤔</div>
+            <h3 className="mt-1 text-center text-lg font-extrabold">
+              這張卡在說哪個名詞？
+            </h3>
+            <p className="mt-3 rounded-2xl bg-stone-50 p-3 text-[15px] leading-relaxed text-stone-700">
+              {quiz.clozeText}
+            </p>
+            <div className="mt-3 grid gap-2">
+              {quiz.options.map((opt) => {
+                let cls = "border-stone-200 bg-white hover:border-amber-400";
+                if (answered) {
+                  if (opt === term.term)
+                    cls = "border-emerald-400 bg-emerald-50 text-emerald-800";
+                  else if (opt === picked)
+                    cls = "border-rose-300 bg-rose-50 text-rose-700";
+                  else cls = "border-stone-200 opacity-50";
+                }
+                return (
+                  <button
+                    key={opt}
+                    disabled={answered}
+                    onClick={() => setPicked(opt)}
+                    className={`rounded-xl border-2 px-3 py-2.5 text-left text-sm font-bold transition-colors ${cls}`}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+            {answered && isCorrect && (
+              <button
+                onClick={onCollect}
+                className="mt-3 w-full rounded-xl bg-emerald-500 py-2.5 text-base font-bold text-white shadow hover:bg-emerald-600"
+              >
+                答對了！收進圖鑑 🎉
+              </button>
+            )}
+            {answered && !isCorrect && (
+              <button
+                onClick={() => {
+                  setRetry(true);
+                  setPicked(null);
+                  setPhase("read");
+                }}
+                className="mt-3 w-full rounded-xl bg-rose-400 py-2.5 text-base font-bold text-white shadow hover:bg-rose-500"
+              >
+                再讀一次 →
+              </button>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
