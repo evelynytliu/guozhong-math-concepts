@@ -12,6 +12,7 @@ import { quizzes } from "../src/content/quizzes";
 import { units } from "../src/content";
 import { wenyanWords } from "../src/content/wenyan";
 import { homeworks } from "../src/content/homework";
+import { historyScenes } from "../src/content/history";
 
 let errors = 0;
 let warnings = 0;
@@ -126,6 +127,39 @@ console.log("\n📄 暑假作業 homework/");
     seen.add(h.id);
   }
   ok(`${homeworks.length} 份作業`);
+}
+
+// ── 歷史 3D 場景 ──
+console.log("\n🏛️ 歷史 3D 場景 history/");
+{
+  const seen = new Set<string>();
+  for (const s of historyScenes) {
+    const tag = `[${s.id}]`;
+    if (seen.has(s.id)) err(`${tag} 場景 id 重複`);
+    seen.add(s.id);
+    if (s.stages.length === 0) err(`${tag} 沒有任何幕`);
+    const tseen = new Set<string>();
+    for (const st of s.stages) {
+      for (const t of st.terms) {
+        if (tseen.has(t.id)) err(`${tag} 名詞卡 id 重複：${t.id}`);
+        tseen.add(t.id);
+        if (!t.explain?.trim()) err(`${tag} 名詞卡 ${t.id} 缺解釋 explain`);
+        if (!t.hook?.trim()) err(`${tag} 名詞卡 ${t.id} 缺記憶鉤 hook`);
+      }
+    }
+    if (s.quiz.length === 0) err(`${tag} 沒有快問快答題目`);
+    for (const [i, q] of s.quiz.entries()) {
+      if (q.answer < 0 || q.answer >= q.options.length)
+        err(`${tag} 快問快答第 ${i + 1} 題 answer 超出選項範圍`);
+      if (!q.explain?.trim()) err(`${tag} 快問快答第 ${i + 1} 題缺詳解`);
+    }
+  }
+  ok(
+    `${historyScenes.length} 個場景、共 ${historyScenes.reduce(
+      (n, s) => n + s.stages.reduce((m, st) => m + st.terms.length, 0),
+      0,
+    )} 張名詞卡`,
+  );
 }
 
 // ── 總結 ──

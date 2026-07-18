@@ -11,9 +11,16 @@ import { units } from "@/content";
 import { wenyanWords } from "@/content/wenyan";
 import { quizzes } from "@/content/quizzes";
 import { homeworks } from "@/content/homework";
+import { historyScenes } from "@/content/history";
 
 // 學習內容的統一卡片形狀（科目頁/首頁列表用）
-export type ContentKind = "unit" | "wenyan" | "quiz" | "homework-draft" | "vocab";
+export type ContentKind =
+  | "unit"
+  | "wenyan"
+  | "quiz"
+  | "homework-draft"
+  | "vocab"
+  | "history";
 
 export interface ContentItem {
   key: string; // React key（含類型前綴避免撞號）
@@ -84,6 +91,25 @@ export function contentForSubject(subjectId: SubjectId): ContentItem[] {
         subtitle: w.teaser,
         badge: "古今異義推導",
         topicId: "chinese-pre-1",
+      });
+    }
+  }
+
+  if (subjectId === "social") {
+    // 歷史 3D 場景（課 → 章節地圖：第1課=史前/原住民、第2課=大航海）
+    const HISTORY_TOPIC: Record<number, string> = {
+      1: "social-his-1",
+      2: "social-his-2",
+    };
+    for (const s of historyScenes) {
+      items.push({
+        key: `history-${s.id}`,
+        kind: "history",
+        href: `/history/${s.id}`,
+        title: `歷史 3D・${s.title}`,
+        subtitle: s.subtitle,
+        badge: `3D 場景・${s.stages.length} 幕`,
+        topicId: HISTORY_TOPIC[s.lesson],
       });
     }
   }

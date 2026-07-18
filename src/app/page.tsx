@@ -159,6 +159,44 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── 歷史 3D 場景館（獨立入口） ── */}
+      <section className="mb-9">
+        <Link
+          href="/history"
+          className="group relative block overflow-hidden rounded-2xl p-5 text-white shadow-md transition-all hover:-translate-y-1 hover:shadow-xl"
+          style={{
+            background:
+              "linear-gradient(135deg, hsl(202 82% 40%), hsl(230 80% 52%))",
+          }}
+        >
+          <span
+            aria-hidden
+            className="absolute -right-3 -top-5 text-7xl opacity-25 transition-transform group-hover:scale-110"
+          >
+            🏛️
+          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-bold">
+              NEW
+            </span>
+            <span className="text-xs font-semibold text-white/80">
+              社會・歷史（康軒）
+            </span>
+          </div>
+          <h3 className="mt-2 text-xl font-black tracking-tight">
+            歷史 3D 場景館
+          </h3>
+          <p className="mt-1 max-w-md text-sm leading-relaxed text-white/90">
+            走進 3D 歷史現場收集名詞卡：從史前洞穴挖到大航海時代，
+            像玩遊戲一樣把課本名詞記起來。
+          </p>
+          <div className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold">
+            進入場景館
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </div>
+        </Link>
+      </section>
+
       {/* ── 數學專屬：完整先修課表 + 螺旋複習 ── */}
       <section className="mb-9">
         <h2 className="mb-3 text-lg font-bold tracking-tight">

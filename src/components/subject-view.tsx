@@ -14,6 +14,7 @@ import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
+  Landmark,
   Map as MapIcon,
   PenLine,
   ScrollText,
@@ -27,6 +28,7 @@ const KIND_ICON: Record<ContentItem["kind"], React.ComponentType<{ className?: s
   quiz: Trophy,
   "homework-draft": PenLine,
   vocab: SpellCheck2,
+  history: Landmark,
 };
 
 export function SubjectView({
