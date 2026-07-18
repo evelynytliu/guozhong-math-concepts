@@ -7,6 +7,7 @@
 import * as React from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { Sparkles } from "@react-three/drei";
 import {
   Crates,
   DottedRoute,
@@ -16,6 +17,13 @@ import {
   lerpPath,
   Person,
 } from "./primitives";
+import {
+  DriftingClouds,
+  SceneLights,
+  Seabirds,
+  SkyDome,
+  WakeRings,
+} from "./environment";
 
 type V3 = [number, number, number];
 
@@ -143,20 +151,30 @@ function SeaSerpent({ position }: { position: V3 }) {
 export function SailDiorama(_props: { stageIndex: number }) {
   return (
     <group>
-      <color attach="background" args={["#d8c9a3"]} />
-      <fog attach="fog" args={["#d8c9a3", 34, 70]} />
-      <ambientLight intensity={0.75} />
-      <directionalLight position={[6, 18, 10]} intensity={0.95} />
+      <color attach="background" args={["#e3cfa0"]} />
+      <fog attach="fog" args={["#e3cfa0", 40, 90]} />
+      {/* 黃昏調的天空：大航海的冒險黃金時刻 */}
+      <SkyDome top="#7fb2e0" horizon="#ffe3b3" below="#c9ab74" sunDir={[-0.5, 0.28, 0.35]} sunGlow="#ffd98a" />
+      <SceneLights sun={[-14, 16, 10]} sunColor="#ffe3b8" intensity={1.25} shadowSize={30} groundColor="#7a6a4e" />
+      <DriftingClouds count={4} />
+      <Seabirds center={[4, 0, -2]} count={3} radius={9} height={6.5} />
 
       {/* ── 航海圖桌面（羊皮紙色外框＋藍色海面） ── */}
-      <mesh position={[0, -0.5, 0]}>
+      <mesh position={[0, -0.5, 0]} receiveShadow>
         <boxGeometry args={[44, 0.6, 30]} />
-        <meshStandardMaterial color="#c9b183" flatShading />
+        <meshStandardMaterial color="#c9b183" />
       </mesh>
-      <mesh position={[0, -0.14, 0]}>
+      {/* 外框緣飾線 */}
+      <mesh position={[0, -0.18, 0]}>
+        <boxGeometry args={[42.4, 0.05, 28.4]} />
+        <meshStandardMaterial color="#a98d5f" />
+      </mesh>
+      <mesh position={[0, -0.14, 0]} receiveShadow>
         <boxGeometry args={[41, 0.3, 27]} />
-        <meshStandardMaterial color="#5fa8c4" flatShading />
+        <meshStandardMaterial color="#5fa8c4" />
       </mesh>
+      {/* 海面波光 */}
+      <Sparkles count={70} position={[0, 0.35, 0]} scale={[38, 0.6, 24]} size={1.8} speed={0.2} opacity={0.5} color="#dff4ff" />
 
       {/* ── 陸地 ── */}
       {/* 中國（明） */}
@@ -258,6 +276,7 @@ export function SailDiorama(_props: { stageIndex: number }) {
         speed={0.012}
       >
         <EuroShip position={[0, 0, 0]} flagColor="#3f7d46" scale={0.9} bob={false} />
+        <WakeRings position={[-0.8, 0.02, 0]} scale={0.7} />
       </SailAlong>
       <SailAlong
         waypoints={[
@@ -273,6 +292,7 @@ export function SailDiorama(_props: { stageIndex: number }) {
         offset={0.3}
       >
         <EuroShip position={[0, 0, 0]} flagColor="#ff7b3d" scale={0.95} bob={false} />
+        <WakeRings position={[-0.8, 0.02, 0]} scale={0.7} />
       </SailAlong>
       {/* 漢人海商戎克船：中國沿海 ↔ 臺灣 */}
       <SailAlong
@@ -289,6 +309,7 @@ export function SailDiorama(_props: { stageIndex: number }) {
         offset={0.6}
       >
         <Junk position={[0, 0, 0]} scale={0.85} bob={false} />
+        <WakeRings position={[-0.7, 0.02, 0]} scale={0.6} />
       </SailAlong>
       {/* 倭寇船（黑帆，在沿海鬼鬼祟祟） */}
       <SailAlong

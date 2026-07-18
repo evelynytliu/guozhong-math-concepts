@@ -7,6 +7,7 @@
 import * as React from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { Sparkles } from "@react-three/drei";
 import {
   Campfire,
   Canoe,
@@ -18,6 +19,16 @@ import {
   PineTree,
   Rock,
 } from "./primitives";
+import {
+  DriftingClouds,
+  Flower,
+  GrassTuft,
+  SceneLights,
+  Seabirds,
+  SkyDome,
+  StylizedWater,
+  WakeRings,
+} from "./environment";
 
 type V3 = [number, number, number];
 
@@ -72,6 +83,7 @@ function SailingCanoe() {
   return (
     <group ref={g}>
       <Canoe position={[0, 0, 0]} scale={1.1} />
+      <WakeRings position={[-0.4, -0.05, 0]} scale={0.8} />
     </group>
   );
 }
@@ -140,15 +152,14 @@ export function AustronesianDiorama(_props: { stageIndex: number }) {
   return (
     <group>
       <color attach="background" args={["#bfe4ef"]} />
-      <fog attach="fog" args={["#bfe4ef", 30, 75]} />
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[10, 16, 8]} intensity={1} />
+      <fog attach="fog" args={["#bfe4ef", 38, 95]} />
+      <SkyDome top="#4f9fe0" horizon="#d8f0f7" below="#2c83b3" sunDir={[0.4, 0.38, 0.35]} />
+      <SceneLights sun={[12, 20, 10]} shadowSize={30} />
+      <DriftingClouds count={6} />
+      <Seabirds center={[-2, 0, 2]} count={4} radius={11} height={7} />
 
-      {/* ── 大海 ── */}
-      <mesh position={[0, -0.25, -4]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[110, 80]} />
-        <meshStandardMaterial color="#4fa8c9" flatShading />
-      </mesh>
+      {/* ── 大海（會流動閃光的風格化水面） ── */}
+      <StylizedWater position={[0, -0.25, -4]} radius={65} shallow="#49b7d6" deep="#2c83b3" />
 
       {/* ── 臺灣（大島＋中央山脈） ── */}
       <group position={[-6, 0, 0]}>
@@ -242,18 +253,55 @@ export function AustronesianDiorama(_props: { stageIndex: number }) {
                 rotation={-a + Math.PI / 2}
                 color={i % 2 ? "#a04a38" : "#6b4a86"}
                 scale={0.8}
+                hat="band"
+                hatColor={i % 2 ? "#e8c33d" : "#c0392b"}
               />
             );
           })}
         </group>
+        {/* 林間光束與螢火蟲（傳說森林的魔幻感） */}
+        {[
+          [-2.5, -1.5],
+          [2, 1],
+        ].map(([x, z], i) => (
+          <mesh key={`shaft${i}`} position={[x, 3.2, z]} rotation={[0.15, 0, 0.12]}>
+            <coneGeometry args={[1.5, 6, 12, 1, true]} />
+            <meshBasicMaterial color="#fff7d6" transparent opacity={0.07} depthWrite={false} side={2} />
+          </mesh>
+        ))}
+        <Sparkles count={40} position={[0, 1.4, -1]} scale={[13, 2.6, 9]} size={2.6} speed={0.35} color="#d9ffb3" opacity={0.75} />
+        <GrassTuft position={[-2.5, 0.2, 1]} scale={1.3} />
+        <GrassTuft position={[1.8, 0.2, 3.2]} />
+        <GrassTuft position={[4.6, 0.2, -2.2]} scale={1.1} />
+        <Flower position={[-1.2, 0.2, 2.6]} color="#ff8fb3" />
+        <Flower position={[3.2, 0.2, 2]} color="#c58fff" />
+        <Flower position={[-4.6, 0.2, -2.4]} color="#ffd34d" scale={1.1} />
       </group>
 
       {/* ── 名稱時光廊（18, -16） ── */}
       <group position={[18, 0, -16]}>
-        <mesh position={[0, -0.05, -2]} rotation={[0, 0.6, 0]}>
+        <mesh position={[0, -0.05, -2]} rotation={[0, 0.6, 0]} receiveShadow>
           <boxGeometry args={[3.4, 0.4, 14]} />
-          <meshStandardMaterial color="#cbb896" flatShading />
+          <meshStandardMaterial color="#cbb896" />
         </mesh>
+        {/* 廊道兩側的石燈籠感火把 */}
+        {[
+          [-4.6, 4.4],
+          [-1.2, 1.8],
+          [2.2, -0.8],
+          [5.6, -3.4],
+        ].map(([x, z], i) => (
+          <group key={`lt${i}`} position={[x + (i % 2 === 0 ? -1.4 : 1.4), 0.15, z]}>
+            <mesh position={[0, 0.25, 0]} castShadow>
+              <cylinderGeometry args={[0.08, 0.12, 0.5, 8]} />
+              <meshStandardMaterial color="#8d8478" />
+            </mesh>
+            <mesh position={[0, 0.58, 0]}>
+              <sphereGeometry args={[0.11, 8, 8]} />
+              <meshStandardMaterial color="#ffe08a" emissive="#ffb300" emissiveIntensity={1.4} />
+            </mesh>
+          </group>
+        ))}
         {/* 三道門：清 → 日治 → 民國（顏色與位置對應資料檔熱點） */}
         <Gate position={[-3.4, 0.15, 3]} color="#b3823f" rotation={0.6} />
         <Gate position={[0, 0.15, 0.4]} color="#b34a4a" rotation={0.6} />

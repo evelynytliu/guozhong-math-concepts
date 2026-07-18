@@ -18,6 +18,14 @@ import {
   Person,
   PineTree,
 } from "./primitives";
+import {
+  DriftingClouds,
+  SceneLights,
+  Seabirds,
+  SkyDome,
+  StylizedWater,
+  WakeRings,
+} from "./environment";
 
 /* 立體臺灣島（Shape 擠出＋中央山脈） */
 function TaiwanIsland() {
@@ -42,10 +50,35 @@ function TaiwanIsland() {
     s.closePath();
     return new THREE.ExtrudeGeometry(s, { depth: 0.7, bevelEnabled: false });
   }, []);
+  const beachGeom = React.useMemo(() => {
+    // 沿島形放大一圈的淺色沙灘裙邊
+    const s = new THREE.Shape();
+    const pts: [number, number][] = [
+      [0.5, 7.35],
+      [2.05, 6.5],
+      [2.8, 3.6],
+      [2.95, 0.5],
+      [2.4, -3.65],
+      [1, -7.15],
+      [0.15, -7.4],
+      [-1.35, -5.75],
+      [-2.6, -2.05],
+      [-2.95, 1.55],
+      [-2.35, 4.7],
+      [-0.9, 6.85],
+    ];
+    s.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) s.lineTo(pts[i][0], pts[i][1]);
+    s.closePath();
+    return new THREE.ExtrudeGeometry(s, { depth: 0.35, bevelEnabled: false });
+  }, []);
   return (
     <group>
-      <mesh geometry={geom} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-        <meshStandardMaterial color="#7fae62" flatShading />
+      <mesh geometry={beachGeom} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]} receiveShadow>
+        <meshStandardMaterial color="#e8d9ab" />
+      </mesh>
+      <mesh geometry={geom} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} castShadow receiveShadow>
+        <meshStandardMaterial color="#7fae62" />
       </mesh>
       {/* 中央山脈（偏東的一排山） */}
       {[
@@ -77,15 +110,14 @@ export function FortsDiorama({ stageIndex }: { stageIndex: number }) {
   return (
     <group>
       <color attach="background" args={["#bfe4ef"]} />
-      <fog attach="fog" args={["#bfe4ef", 26, 60]} />
-      <ambientLight intensity={0.68} />
-      <directionalLight position={[8, 14, 6]} intensity={1} />
+      <fog attach="fog" args={["#bfe4ef", 34, 85]} />
+      <SkyDome top="#4f9fe0" horizon="#d8f0f7" below="#2c83b3" sunDir={[0.45, 0.4, 0.4]} />
+      <SceneLights sun={[11, 18, 9]} shadowSize={22} />
+      <DriftingClouds count={5} />
+      <Seabirds center={[-3, 0, 3]} count={3} radius={8} height={6} />
 
       {/* 海 */}
-      <mesh position={[0, -0.15, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[90, 70]} />
-        <meshStandardMaterial color="#4fa8c9" flatShading />
-      </mesh>
+      <StylizedWater position={[0, -0.15, 0]} radius={60} shallow="#49b7d6" deep="#2c83b3" />
 
       <TaiwanIsland />
 
@@ -121,7 +153,10 @@ export function FortsDiorama({ stageIndex }: { stageIndex: number }) {
         <Flag position={[0.9, 0, 0]} color="#ff7b3d" height={0.9} />
       </group>
       {/* 荷蘭船 */}
-      <EuroShip position={[-4.6, 0, 6.2]} flagColor="#ff7b3d" scale={0.8} rotation={0.5} />
+      <group>
+        <EuroShip position={[-6.6, 0, 7.8]} flagColor="#ff7b3d" scale={0.8} rotation={0.6} />
+        <WakeRings position={[-7.2, -0.05, 7.5]} scale={0.7} />
+      </group>
 
       {/* ── 北部：雞籠與淡水 ── */}
       <Fort
@@ -149,7 +184,10 @@ export function FortsDiorama({ stageIndex }: { stageIndex: number }) {
       </group>
       {/* 西班牙船（1642 後就不見了） */}
       {!northIsDutch && (
-        <EuroShip position={[0.8, 0, -8.3]} flagColor="#c94040" scale={0.8} rotation={2.6} />
+        <group>
+          <EuroShip position={[0.8, 0, -8.3]} flagColor="#c94040" scale={0.8} rotation={2.6} />
+          <WakeRings position={[1.4, -0.05, -8]} scale={0.7} />
+        </group>
       )}
 
       {/* 1642 荷蘭北伐箭頭 */}

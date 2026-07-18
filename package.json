@@ -16,6 +16,7 @@
     "@radix-ui/react-slot": "^1.1.1",
     "@react-three/drei": "^9.117.3",
     "@react-three/fiber": "^8.17.10",
+    "@react-three/postprocessing": "^2.16.3",
     "@supabase/supabase-js": "^2.45.4",
     "@types/three": "^0.170.0",
     "class-variance-authority": "^0.7.1",

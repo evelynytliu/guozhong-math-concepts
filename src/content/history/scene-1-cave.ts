@@ -24,7 +24,7 @@ export const sceneCave: HistoryScene = {
       kicker: "現在・臺東長濱 八仙洞",
       narration:
         "歡迎加入考古隊！這裡是臺東長濱海邊的八仙洞，考古學家在洞裡一層一層往下挖。規則只有一條：挖得越深，東西越老。準備好了嗎？我們要一路挖到五萬年前。",
-      camera: { pos: [0, 3.5, 10.5], look: [0, 1.2, -2] },
+      camera: { pos: [0, 3, 9], look: [0, 2.4, -4] },
       terms: [
         {
           id: "site",

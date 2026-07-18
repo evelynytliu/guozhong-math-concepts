@@ -18,6 +18,17 @@ import {
   Person,
   PineTree,
 } from "./primitives";
+import {
+  DriftingClouds,
+  GrassTuft,
+  Flower,
+  SceneLights,
+  Seabirds,
+  SkyDome,
+  StylizedWater,
+  Torch,
+  WakeRings,
+} from "./environment";
 
 /* 孔廟：紅牆、雙層屋頂、前庭 */
 function ConfuciusTemple({ position }: { position: [number, number, number] }) {
@@ -88,11 +99,18 @@ function SpearRack({ position }: { position: [number, number, number] }) {
   );
 }
 
-/* 西邊的暴風雲（清帝國的壓力） */
+/* 西邊的暴風雲（清帝國的壓力）——內部偶爾閃電 */
 function StormCloud({ position }: { position: [number, number, number] }) {
   const g = React.useRef<THREE.Group>(null);
+  const bolt = React.useRef<THREE.PointLight>(null);
   useFrame(({ clock }) => {
     if (g.current) g.current.position.x = position[0] + Math.sin(clock.elapsedTime * 0.4) * 0.4;
+    if (bolt.current) {
+      // 每 ~4 秒閃一下（用 sin 疊出偶發的尖峰）
+      const t = clock.elapsedTime + position[2] * 1.7;
+      const spike = Math.max(0, Math.sin(t * 1.6) * Math.sin(t * 5.3) - 0.82) * 40;
+      bolt.current.intensity = spike;
+    }
   });
   return (
     <group ref={g} position={position}>
@@ -104,10 +122,11 @@ function StormCloud({ position }: { position: [number, number, number] }) {
         [-0.5, 0.5, 0.6, 0.8],
       ].map(([x, y, z, s], i) => (
         <mesh key={i} position={[x, y, z]} scale={s}>
-          <sphereGeometry args={[1, 8, 8]} />
-          <meshStandardMaterial color="#5c6470" transparent opacity={0.85} flatShading />
+          <sphereGeometry args={[1, 10, 8]} />
+          <meshStandardMaterial color="#5c6470" transparent opacity={0.88} />
         </mesh>
       ))}
+      <pointLight ref={bolt} position={[0, -0.5, 0]} color="#cfe0ff" distance={16} decay={2} intensity={0} />
     </group>
   );
 }
@@ -117,21 +136,47 @@ export function KoxingaDiorama({ stageIndex }: { stageIndex: number }) {
   return (
     <group>
       <color attach="background" args={[stageIndex >= 3 ? "#b9cfd8" : "#cde7f0"]} />
-      <fog attach="fog" args={[stageIndex >= 3 ? "#b9cfd8" : "#cde7f0", 26, 62]} />
-      <ambientLight intensity={0.66} />
-      <directionalLight position={[8, 14, 6]} intensity={1} />
+      <fog attach="fog" args={[stageIndex >= 3 ? "#b9cfd8" : "#cde7f0", 34, 85]} />
+      {stageIndex >= 3 ? (
+        <SkyDome top="#6b7f96" horizon="#cfdbe3" below="#33607a" sunDir={[0.4, 0.3, 0.5]} sunGlow="#e8ecf2" />
+      ) : (
+        <SkyDome top="#4f9fe0" horizon="#d8f0f7" below="#2c83b3" sunDir={[0.4, 0.38, 0.5]} />
+      )}
+      <SceneLights
+        sun={[10, 17, 9]}
+        intensity={stageIndex >= 3 ? 0.95 : 1.3}
+        sunColor={stageIndex >= 3 ? "#dfe6ee" : "#fff2dc"}
+        shadowSize={24}
+      />
+      <DriftingClouds count={stageIndex >= 3 ? 3 : 5} />
+      <Seabirds center={[-2, 0, -2]} count={3} radius={9} height={6.5} />
 
       {/* 海（外海＋台江內海） */}
-      <mesh position={[-2, -0.15, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[80, 70]} />
-        <meshStandardMaterial color="#4fa8c9" flatShading />
-      </mesh>
+      <StylizedWater
+        position={[-2, -0.15, 0]}
+        radius={55}
+        shallow={stageIndex >= 3 ? "#587f93" : "#49b7d6"}
+        deep={stageIndex >= 3 ? "#33607a" : "#2c83b3"}
+      />
 
-      {/* ── 右側陸地（臺南平原） ── */}
-      <mesh position={[7.8, 0, 0]}>
-        <boxGeometry args={[12, 0.8, 24]} />
-        <meshStandardMaterial color="#7fae62" flatShading />
+      {/* ── 右側陸地（臺南平原）＋沙岸裙邊 ── */}
+      <mesh position={[7.6, -0.06, 0]} receiveShadow>
+        <boxGeometry args={[12.8, 0.6, 24.8]} />
+        <meshStandardMaterial color="#e8d9ab" />
       </mesh>
+      <mesh position={[7.8, 0, 0]} receiveShadow>
+        <boxGeometry args={[12, 0.8, 24]} />
+        <meshStandardMaterial color="#7fae62" />
+      </mesh>
+      {/* 平原點綴 */}
+      <GrassTuft position={[4.2, 0.4, -3.4]} scale={1.2} />
+      <GrassTuft position={[6.2, 0.4, 1.4]} />
+      <GrassTuft position={[5, 0.4, 4.8]} scale={1.1} />
+      <Flower position={[4.8, 0.4, -1]} color="#ff8fb3" />
+      <Flower position={[6.8, 0.4, 5.4]} color="#ffd34d" />
+      <PineTree position={[5.4, 0.4, -8.6]} height={1.4} />
+      <PineTree position={[11.6, 0.4, 6.4]} height={1.7} />
+      <PineTree position={[12.2, 0.4, -2.2]} height={1.5} />
       {/* 東側山脈背景 */}
       {[
         [-6, 2.2],
@@ -170,12 +215,16 @@ export function KoxingaDiorama({ stageIndex }: { stageIndex: number }) {
         { p: [-4.3, 0, -4.2] as const, r: -0.7, s: 0.95 },
         { p: [-3, 0, -2.4] as const, r: -0.8, s: 0.9 },
       ].map((s, i) => (
-        <Junk key={i} position={[...s.p]} rotation={s.r} scale={s.s} sailColor="#cfa86a" />
+        <group key={i}>
+          <Junk position={[...s.p]} rotation={s.r} scale={s.s} sailColor="#cfa86a" />
+          <WakeRings position={[s.p[0] + 0.6, -0.05, s.p[2] - 0.6]} scale={0.7} />
+        </group>
       ))}
       {/* 主帥船（大一點、掛紅旗） */}
       <group>
         <Junk position={[-2, 0, -1]} rotation={-0.9} scale={1.15} sailColor="#c9b48a" />
         <Flag position={[-2, 0.5, -1]} color="#c0392b" height={1.3} />
+        <WakeRings position={[-1.3, -0.05, -1.8]} scale={0.9} />
       </group>
 
       {/* ── 普羅民遮（岸邊小城） ── */}
@@ -240,7 +289,9 @@ export function KoxingaDiorama({ stageIndex }: { stageIndex: number }) {
         ))}
         <Junk position={[-3.2, 0, 0.4]} rotation={0.15} scale={0.9} sailColor="#cfa86a" />
         <Crates position={[0.2, 0.42, -0.1]} scale={0.8} />
-        <Person position={[0.9, 0.4, 0.5]} color="#5c7d9e" scale={0.75} rotation={-2} />
+        <Person position={[0.9, 0.4, 0.5]} color="#5c7d9e" scale={0.75} rotation={-2} hat="straw" />
+        <Torch position={[0.4, 0.4, 0.9]} scale={0.9} />
+        <Torch position={[-2, 0.35, -0.6]} scale={0.9} />
       </group>
 
       {/* ── 第 4 幕：西邊來的清軍與暴風雲 ── */}

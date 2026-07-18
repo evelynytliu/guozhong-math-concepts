@@ -5,6 +5,7 @@
 // 鏡頭（由 scene-1-cave.ts 的 camera 定義）先降到最深，再一層層往上＝時間往前走。
 
 import * as React from "react";
+import { Sparkles } from "@react-three/drei";
 import {
   Campfire,
   Crates,
@@ -16,6 +17,16 @@ import {
   Rock,
   Smoke,
 } from "./primitives";
+import {
+  DriftingClouds,
+  Flower,
+  GrassTuft,
+  SceneLights,
+  Seabirds,
+  SkyDome,
+  StylizedWater,
+  Torch,
+} from "./environment";
 
 /* 一條從地表通到最深層的木梯（暗示「往下挖」的路徑） */
 function Ladder() {
@@ -148,17 +159,28 @@ function Level({
   return (
     <group>
       {/* 地板 */}
-      <mesh position={[0, y - 0.3, -0.8]}>
+      <mesh position={[0, y - 0.3, -0.8]} receiveShadow>
         <boxGeometry args={[13.5, 0.6, 7.5]} />
-        <meshStandardMaterial color={floorColor} flatShading />
+        <meshStandardMaterial color={floorColor} />
       </mesh>
       {/* 洞窟開口（深色圓弧背景） */}
       <mesh position={[0, y + 1.7, -4.25]}>
         <circleGeometry args={[3.4, 24]} />
         <meshStandardMaterial color={caveColor} />
       </mesh>
-      {/* 柔和補光 */}
-      <pointLight position={[0, y + 3, 2]} color="#ffe9c8" intensity={0.7} distance={12} decay={2} />
+      {/* 柔和補光＋兩側火把＋浮塵（考古現場的空氣感） */}
+      <pointLight position={[0, y + 3, 2]} color="#ffe9c8" intensity={0.8} distance={13} decay={2} />
+      <Torch position={[-5.2, y, 1.8]} />
+      <Torch position={[5.2, y, 1.8]} />
+      <Sparkles
+        count={26}
+        position={[0, y + 2, 0]}
+        scale={[10, 3.6, 6]}
+        size={2.2}
+        speed={0.25}
+        opacity={0.5}
+        color="#ffe9c8"
+      />
       <group position={[0, y, 0]}>{children}</group>
     </group>
   );
@@ -168,15 +190,34 @@ export function CaveDiorama(_props: { stageIndex: number }) {
   return (
     <group>
       <color attach="background" args={["#cde7f0"]} />
-      <fog attach="fog" args={["#cde7f0", 24, 60]} />
-      <ambientLight intensity={0.62} />
-      <directionalLight position={[8, 14, 8]} intensity={1.05} />
+      <fog attach="fog" args={["#cde7f0", 30, 80]} />
+      <SkyDome top="#4f9fe0" horizon="#d8f0f7" below="#2c83b3" sunDir={[0.45, 0.4, 0.5]} />
+      <SceneLights sun={[10, 18, 12]} shadowSize={30} />
+      <DriftingClouds count={5} />
+      <Seabirds center={[0, 2, 4]} count={3} radius={10} height={8} />
 
       {/* ── 大崖壁（貫穿所有層） ── */}
-      <mesh position={[0, -8, -6.6]}>
+      <mesh position={[0, -8, -6.6]} receiveShadow>
         <boxGeometry args={[28, 30, 4]} />
-        <meshStandardMaterial color="#a89a86" flatShading />
+        <meshStandardMaterial color="#a89a86" />
       </mesh>
+      {/* 崖壁頂的綠帽與垂落植被（圓潤灌木叢） */}
+      <mesh position={[0, 6.9, -6.4]} receiveShadow>
+        <boxGeometry args={[28, 0.5, 4.4]} />
+        <meshStandardMaterial color="#6fae62" />
+      </mesh>
+      {[-10, -6.5, -2.5, 1.5, 5, 8.5, 11.5].map((x, i) => (
+        <group key={i} position={[x, 6.85, -4.6]}>
+          <mesh scale={[1.1 + (i % 3) * 0.3, 0.7, 0.8]} castShadow>
+            <sphereGeometry args={[1, 10, 8]} />
+            <meshStandardMaterial color={i % 2 ? "#5d9b4e" : "#4c8a55"} />
+          </mesh>
+          <mesh position={[0.5, -0.5, 0.25]} scale={[0.5, 0.7, 0.4]}>
+            <sphereGeometry args={[1, 8, 7]} />
+            <meshStandardMaterial color="#5d9b4e" />
+          </mesh>
+        </group>
+      ))}
       {/* 文化層色帶：越深越老（金屬器/新石器/舊石器） */}
       {[
         { y: -3.5, c: "#b0705a" },
@@ -188,52 +229,94 @@ export function CaveDiorama(_props: { stageIndex: number }) {
           <meshStandardMaterial color={b.c} flatShading />
         </mesh>
       ))}
-      {/* 地表上方的崖面與八仙洞洞口 */}
+      {/* 地表上方的崖面與八仙洞洞口（黑洞＋岩石洞緣，讀得出深度） */}
       {[
         { p: [-3.5, 2.6, -4.4] as const, r: 0.7 },
         { p: [0.5, 3.4, -4.4] as const, r: 0.9 },
         { p: [3.8, 2.2, -4.4] as const, r: 0.55 },
         { p: [-1.2, 4.6, -4.4] as const, r: 0.5 },
+        { p: [6.8, 4.2, -4.4] as const, r: 0.45 },
       ].map((c, i) => (
-        <mesh key={i} position={[...c.p]}>
-          <circleGeometry args={[c.r, 20]} />
-          <meshStandardMaterial color="#33302b" />
-        </mesh>
+        <group key={i} position={[...c.p]}>
+          <mesh>
+            <circleGeometry args={[c.r, 20]} />
+            <meshStandardMaterial color="#26221e" />
+          </mesh>
+          <mesh position={[0, 0, -0.02]} scale={[1.25, 1.12, 1]}>
+            <circleGeometry args={[c.r, 20]} />
+            <meshStandardMaterial color="#8f8271" />
+          </mesh>
+        </group>
       ))}
 
       <Ladder />
 
       {/* ── 地表：八仙洞考古現場 ── */}
       <group>
-        <mesh position={[0, -0.15, 0]}>
+        <mesh position={[0, -0.15, 0]} receiveShadow>
           <boxGeometry args={[28, 0.3, 13]} />
-          <meshStandardMaterial color="#7fae62" flatShading />
+          <meshStandardMaterial color="#7fae62" />
         </mesh>
-        {/* 海（在鏡頭後方延伸） */}
-        <mesh position={[0, -0.45, 13]}>
-          <boxGeometry args={[40, 0.3, 14]} />
-          <meshStandardMaterial color="#5fb4cf" flatShading />
-        </mesh>
+        {/* 海（風格化水面，鏡頭高處能看到波光） */}
+        <StylizedWater position={[0, -0.42, 22]} radius={30} shallow="#49b7d6" deep="#2c83b3" />
         {/* 沙灘過渡 */}
-        <mesh position={[0, -0.28, 7.2]}>
+        <mesh position={[0, -0.28, 7.2]} receiveShadow>
           <boxGeometry args={[28, 0.3, 3]} />
-          <meshStandardMaterial color="#e3d3a4" flatShading />
+          <meshStandardMaterial color="#e8d9ab" />
         </mesh>
-        {/* 考古帳棚 */}
-        <mesh position={[-2.8, 0.55, 1.4]} rotation={[0, 0.4, 0]}>
-          <coneGeometry args={[1, 1.1, 4]} />
-          <meshStandardMaterial color="#f2ede0" flatShading />
-        </mesh>
-        <Person position={[-1.6, 0, 2.2]} color="#4a7fae" />
-        <Person position={[2.2, 0, 0.9]} color="#c9793f" scale={0.85} />
+        {/* 考古帳棚（帳身＋門簾） */}
+        <group position={[-2.8, 0, 1.4]} rotation={[0, 0.4, 0]}>
+          <mesh position={[0, 0.55, 0]} castShadow>
+            <coneGeometry args={[1.05, 1.1, 4]} />
+            <meshStandardMaterial color="#f2ede0" flatShading />
+          </mesh>
+          <mesh position={[0, 0.3, 0.62]} rotation={[0.2, 0, 0]}>
+            <boxGeometry args={[0.34, 0.6, 0.04]} />
+            <meshStandardMaterial color="#d9cbb0" />
+          </mesh>
+        </group>
+        <Person position={[-1.6, 0, 2.2]} color="#4a7fae" hat="straw" />
+        <Person position={[2.2, 0, 0.9]} color="#c9793f" scale={0.85} hat="cone" hatColor="#e8c33d" />
         <Crates position={[1.2, 0, 2.6]} scale={0.8} />
         <PalmTree position={[4.6, 0, 4.6]} />
         <PalmTree position={[-5.2, 0, 5]} scale={0.85} />
-        {/* 挖掘坑（提示往下） */}
+        <PalmTree position={[8.2, 0, 3.2]} scale={0.7} />
+        {/* 挖掘坑＋測量網格線＋工具 */}
         <mesh position={[0.4, 0.02, 0.6]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[2.2, 1.6]} />
           <meshStandardMaterial color="#4c4238" />
         </mesh>
+        {[-0.6, 0, 0.6].map((o, i) => (
+          <mesh key={`gx${i}`} position={[0.4 + o, 0.06, 0.6]}>
+            <boxGeometry args={[0.02, 0.02, 1.66]} />
+            <meshStandardMaterial color="#f2ede0" />
+          </mesh>
+        ))}
+        {[-0.5, 0.1, 0.7].map((o, i) => (
+          <mesh key={`gz${i}`} position={[0.4, 0.06, 0.6 + o * 0.8]}>
+            <boxGeometry args={[2.26, 0.02, 0.02]} />
+            <meshStandardMaterial color="#f2ede0" />
+          </mesh>
+        ))}
+        {/* 鏟子 */}
+        <group position={[1.9, 0, 1.7]} rotation={[0.3, 0.5, 0.5]}>
+          <mesh position={[0, 0.35, 0]}>
+            <cylinderGeometry args={[0.025, 0.025, 0.7, 6]} />
+            <meshStandardMaterial color="#8a6238" />
+          </mesh>
+          <mesh position={[0, 0, 0]}>
+            <boxGeometry args={[0.14, 0.2, 0.03]} />
+            <meshStandardMaterial color="#9aa5ad" metalness={0.5} roughness={0.4} />
+          </mesh>
+        </group>
+        {/* 草叢與野花 */}
+        <GrassTuft position={[-4.2, 0, 2.8]} />
+        <GrassTuft position={[3.6, 0, 3.4]} scale={1.2} />
+        <GrassTuft position={[6.5, 0, 1.6]} />
+        <GrassTuft position={[-7.5, 0, 3.6]} scale={0.9} />
+        <Flower position={[-3.6, 0, 3.6]} color="#ff8fb3" />
+        <Flower position={[5.6, 0, 2.4]} color="#ffd34d" />
+        <Flower position={[-6.4, 0, 2.2]} color="#c58fff" scale={0.9} />
       </group>
 
       {/* ── 金屬器層（y=-6）：十三行 ── */}
