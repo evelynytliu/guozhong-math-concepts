@@ -56,31 +56,66 @@ function clamp(v: number, lo: number, hi: number) {
 
 /* 鏡頭平滑飛行：往目標位置與注視點做指數趨近，
    到定點後帶一點極輕微的漂浮晃動（遊戲鏡頭的「呼吸感」）。
-   另支援「抓著轉」：滑鼠/手指按住拖曳 → 繞注視點加上偏航/俯仰偏移，
-   放開後偏移量以彈簧感緩緩歸零、回到原本設定的構圖。 */
+   另支援自由探索（放開後都會以彈簧感回到原本設定的構圖）：
+   - 抓著轉：滑鼠/單指拖曳 → 繞注視點偏航/俯仰
+   - 放大縮小：滑鼠滾輪（停止滾動後回彈）／平板雙指捏合（放開後回彈） */
 function CameraRig({ cam }: { cam: StageCamera }) {
   const { gl } = useThree();
   const look = React.useRef(new THREE.Vector3(...cam.look));
   const pos = React.useRef<THREE.Vector3 | null>(null);
   const destPos = React.useMemo(() => new THREE.Vector3(...cam.pos), [cam]);
   const destLook = React.useMemo(() => new THREE.Vector3(...cam.look), [cam]);
-  // 使用者拖曳出來的視角偏移（偏航/俯仰）
-  const orbit = React.useRef({ yaw: 0, pitch: 0, dragging: false, x: 0, y: 0 });
+  // 使用者操作出來的視角偏移（偏航/俯仰/縮放）
+  const orbit = React.useRef({
+    yaw: 0,
+    pitch: 0,
+    zoom: 1, // 距離倍率：<1 拉近、>1 拉遠
+    dragging: false,
+    x: 0,
+    y: 0,
+    wheelAt: 0, // 最後一次滾輪的時間（停止滾動一小段後開始回彈）
+    pointers: new Map<number, [number, number]>(), // 目前按著的手指
+    pinchDist: 0,
+  });
 
   React.useEffect(() => {
     const el = gl.domElement;
+    const pinchDistance = () => {
+      const pts = [...orbit.current.pointers.values()];
+      return Math.hypot(pts[0][0] - pts[1][0], pts[0][1] - pts[1][1]);
+    };
     const down = (e: PointerEvent) => {
-      orbit.current.dragging = true;
-      orbit.current.x = e.clientX;
-      orbit.current.y = e.clientY;
+      const o = orbit.current;
+      o.pointers.set(e.pointerId, [e.clientX, e.clientY]);
+      if (o.pointers.size === 2) {
+        // 進入雙指捏合：暫停旋轉，記錄起始指距
+        o.dragging = false;
+        o.pinchDist = pinchDistance();
+      } else if (o.pointers.size === 1) {
+        o.dragging = true;
+        o.x = e.clientX;
+        o.y = e.clientY;
+      }
       try {
         el.setPointerCapture?.(e.pointerId);
       } catch {
-        // 捕捉失敗不影響拖曳（move/up 都掛在 window 上）
+        // 捕捉失敗不影響操作（move/up 都掛在 window 上）
       }
     };
     const move = (e: PointerEvent) => {
       const o = orbit.current;
+      if (o.pointers.has(e.pointerId)) {
+        o.pointers.set(e.pointerId, [e.clientX, e.clientY]);
+      }
+      if (o.pointers.size === 2 && o.pinchDist > 0) {
+        // 捏合縮放：指距變大＝拉近
+        const d = pinchDistance();
+        if (d > 0) {
+          o.zoom = clamp(o.zoom * (o.pinchDist / d), 0.45, 2.2);
+          o.pinchDist = d;
+        }
+        return;
+      }
       if (!o.dragging) return;
       const dx = e.clientX - o.x;
       const dy = e.clientY - o.y;
@@ -89,18 +124,37 @@ function CameraRig({ cam }: { cam: StageCamera }) {
       o.yaw = clamp(o.yaw - dx * 0.006, -2.4, 2.4);
       o.pitch = clamp(o.pitch - dy * 0.0045, -0.9, 0.55);
     };
-    const up = () => {
-      orbit.current.dragging = false;
+    const up = (e: PointerEvent) => {
+      const o = orbit.current;
+      o.pointers.delete(e.pointerId);
+      if (o.pointers.size < 2) o.pinchDist = 0;
+      if (o.pointers.size === 1) {
+        // 從捏合回到單指：以剩下那根手指當新的拖曳起點（避免跳動）
+        const [x, y] = [...o.pointers.values()][0];
+        o.dragging = true;
+        o.x = x;
+        o.y = y;
+      } else if (o.pointers.size === 0) {
+        o.dragging = false;
+      }
+    };
+    const wheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const o = orbit.current;
+      o.zoom = clamp(o.zoom * Math.exp(e.deltaY * 0.0012), 0.45, 2.2);
+      o.wheelAt = performance.now();
     };
     el.addEventListener("pointerdown", down);
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
+    el.addEventListener("wheel", wheel, { passive: false });
     return () => {
       el.removeEventListener("pointerdown", down);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", up);
+      el.removeEventListener("wheel", wheel);
     };
   }, [gl]);
 
@@ -110,11 +164,17 @@ function CameraRig({ cam }: { cam: StageCamera }) {
     pos.current.lerp(destPos, k);
     look.current.lerp(destLook, k);
     const o = orbit.current;
-    // 放開後：偏移量緩緩歸零（自動回到原本構圖）
+    const back = 1 - Math.exp(-3 * delta);
+    // 放開後：旋轉偏移緩緩歸零（自動回到原本構圖）
     if (!o.dragging) {
-      const back = 1 - Math.exp(-3 * delta);
       o.yaw += (0 - o.yaw) * back;
       o.pitch += (0 - o.pitch) * back;
+    }
+    // 縮放回彈：沒在捏合、且滾輪停了 0.7 秒後 → 倍率緩緩回到 1
+    const zoomHeld =
+      o.pinchDist > 0 || performance.now() - o.wheelAt < 700;
+    if (!zoomHeld) {
+      o.zoom = Math.exp(Math.log(o.zoom) * (1 - back));
     }
     const t = clock.elapsedTime;
     const base = new THREE.Vector3(
@@ -122,11 +182,12 @@ function CameraRig({ cam }: { cam: StageCamera }) {
       pos.current.y + Math.sin(t * 0.35 + 1.3) * 0.14,
       pos.current.z + Math.cos(t * 0.42) * 0.18,
     );
-    // 以注視點為中心，套用拖曳偏移（球座標旋轉）
+    // 以注視點為中心，套用拖曳與縮放偏移（球座標）
     const v = base.sub(look.current);
     const sph = new THREE.Spherical().setFromVector3(v);
     sph.theta += o.yaw;
     sph.phi = clamp(sph.phi + o.pitch, 0.15, 1.72);
+    sph.radius = Math.max(1.2, sph.radius * o.zoom);
     v.setFromSpherical(sph);
     camera.position.copy(look.current).add(v);
     camera.lookAt(look.current);

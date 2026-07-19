@@ -51,12 +51,12 @@ function BigClock({ position }: { position: [number, number, number] }) {
         <cylinderGeometry args={[0.14, 0.2, 2, 8]} />
         <meshStandardMaterial color="#7d6248" />
       </mesh>
-      {/* 鐘框＋鐘面 */}
-      <mesh position={[0, 2.6, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+      {/* 鐘框＋鐘面（直立、面向前方 +Z；torus 預設就面向 +Z，不用轉） */}
+      <mesh position={[0, 2.6, 0]} castShadow>
         <torusGeometry args={[1.15, 0.14, 10, 28]} />
         <meshStandardMaterial color="#c9a227" metalness={0.4} roughness={0.4} />
       </mesh>
-      <mesh position={[0, 2.6, 0]}>
+      <mesh position={[0, 2.6, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <cylinderGeometry args={[1.05, 1.05, 0.08, 28]} />
         <meshStandardMaterial color="#f7f1e3" />
       </mesh>

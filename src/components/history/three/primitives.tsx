@@ -95,7 +95,7 @@ export function Person({
         </group>
       )}
       {hat === "band" && (
-        <mesh position={[0, 0.88, 0]} rotation={[0.08, 0, 0]}>
+        <mesh position={[0, 0.88, 0]} rotation={[Math.PI / 2 - 0.08, 0, 0]}>
           <torusGeometry args={[0.19, 0.035, 8, 16]} />
           <meshStandardMaterial color={hatColor} />
         </mesh>

@@ -97,8 +97,9 @@ function Village({
             <boxGeometry args={[1, 0.12, 0.85]} />
             <meshStandardMaterial color="#8f4f33" />
           </mesh>
-          <mesh position={[0, 0.94, 0]} rotation={[0, 0, 0]} castShadow>
-            <cylinderGeometry args={[0.12, 0.12, 1, 3]} />
+          {/* 橫向菱形屋脊 */}
+          <mesh position={[0, 0.92, 0]} rotation={[Math.PI / 4, 0, 0]} castShadow>
+            <boxGeometry args={[1.02, 0.15, 0.15]} />
             <meshStandardMaterial color="#8f4f33" />
           </mesh>
         </group>
@@ -152,8 +153,9 @@ export function FrontierDiorama(_props: { stageIndex: number }) {
           <boxGeometry args={[0.5, 0.3, 1.6]} />
           <meshStandardMaterial color="#8f4f33" />
         </mesh>
-        <mesh position={[0, 1.62, 0]} rotation={[0, 0, 0]} castShadow>
-          <cylinderGeometry args={[0.18, 0.18, 1.9, 3]} />
+        {/* 隘門頂的橫向菱形屋脊（沿 z 向） */}
+        <mesh position={[0, 1.58, 0]} rotation={[0, 0, Math.PI / 4]} castShadow>
+          <boxGeometry args={[0.24, 0.24, 1.95]} />
           <meshStandardMaterial color="#7a4230" />
         </mesh>
       </group>

@@ -80,7 +80,8 @@ function WaterWheel({ position }: { position: [number, number, number] }) {
         </mesh>
       ))}
       <group ref={wheel} position={[0, 1, 0]}>
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
+        {/* 輪圈與輻條同在 XY 平面（torus 預設面向 +Z，跟輻條一致） */}
+        <mesh>
           <torusGeometry args={[0.75, 0.07, 8, 20]} />
           <meshStandardMaterial color="#8a6238" />
         </mesh>

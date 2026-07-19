@@ -113,10 +113,13 @@ function CompassRose({ position }: { position: V3 }) {
         <meshStandardMaterial color="#dcc9a0" />
       </mesh>
       {[0, 1, 2, 3].map((i) => (
-        <mesh key={i} position={[0, 0.05, 0]} rotation={[0, (i * Math.PI) / 2, 0]}>
-          <coneGeometry args={[0.16, 1.9, 4]} />
-          <meshStandardMaterial color={i === 0 ? "#b34a4a" : "#7a6a4e"} flatShading />
-        </mesh>
+        <group key={i} rotation={[0, (i * Math.PI) / 2, 0]}>
+          {/* 指針平躺、尖端朝外（cone 轉 90° 讓軸沿 +Z） */}
+          <mesh position={[0, 0.06, 0.55]} rotation={[Math.PI / 2, 0, 0]}>
+            <coneGeometry args={[0.14, 0.95, 4]} />
+            <meshStandardMaterial color={i === 0 ? "#b34a4a" : "#7a6a4e"} flatShading />
+          </mesh>
+        </group>
       ))}
       <mesh position={[0, 0.1, 0]}>
         <sphereGeometry args={[0.14, 8, 8]} />

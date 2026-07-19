@@ -50,9 +50,9 @@ function TownBlock({
             <boxGeometry args={[0.85, 0.7, 0.7]} />
             <meshStandardMaterial color="#d9cbb0" />
           </mesh>
-          {/* 紅磚山牆屋頂（燕尾感：中間高兩端翹） */}
-          <mesh position={[0, 0.82, 0]} rotation={[0, 0, 0]} castShadow>
-            <cylinderGeometry args={[0.14, 0.14, 0.95, 3]} />
+          {/* 紅磚屋頂：平頂板＋橫向菱形屋脊（box 轉 45° 當屋脊） */}
+          <mesh position={[0, 0.86, 0]} rotation={[Math.PI / 4, 0, 0]} castShadow>
+            <boxGeometry args={[0.98, 0.16, 0.16]} />
             <meshStandardMaterial color={c as string} />
           </mesh>
           <mesh position={[0, 0.78, 0]} castShadow>
