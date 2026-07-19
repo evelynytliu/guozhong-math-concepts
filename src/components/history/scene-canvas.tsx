@@ -73,7 +73,11 @@ function CameraRig({ cam }: { cam: StageCamera }) {
       orbit.current.dragging = true;
       orbit.current.x = e.clientX;
       orbit.current.y = e.clientY;
-      el.setPointerCapture?.(e.pointerId);
+      try {
+        el.setPointerCapture?.(e.pointerId);
+      } catch {
+        // 捕捉失敗不影響拖曳（move/up 都掛在 window 上）
+      }
     };
     const move = (e: PointerEvent) => {
       const o = orbit.current;
