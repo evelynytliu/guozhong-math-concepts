@@ -54,6 +54,23 @@ export function ScenePlayer({ scene }: { scene: HistoryScene }) {
   const [mode, setMode] = React.useState<Mode>("story");
   const [showDex, setShowDex] = React.useState(false);
   const [firstTryScore, setFirstTryScore] = React.useState(0);
+  // 「可以拖曳轉視角」提示：拖過一次就永久隱藏
+  const [orbitHint, setOrbitHint] = React.useState(false);
+  React.useEffect(() => {
+    try {
+      setOrbitHint(!window.localStorage.getItem("history3d_orbit_hint_done"));
+    } catch {
+      setOrbitHint(true);
+    }
+  }, []);
+  const dismissOrbitHint = React.useCallback(() => {
+    setOrbitHint(false);
+    try {
+      window.localStorage.setItem("history3d_orbit_hint_done", "1");
+    } catch {
+      // 存不進去就算了
+    }
+  }, []);
 
   const stage = scene.stages[stageIndex];
   const isLastStage = stageIndex === scene.stages.length - 1;
@@ -114,7 +131,12 @@ export function ScenePlayer({ scene }: { scene: HistoryScene }) {
       </header>
 
       {/* ── 3D 場景 ── */}
-      <div className="min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1" onPointerDown={mode === "story" ? dismissOrbitHint : undefined}>
+        {mode === "story" && orbitHint && (
+          <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 animate-pulse rounded-full bg-black/45 px-3.5 py-1.5 text-sm font-medium text-white backdrop-blur">
+            🖐️ 按住畫面拖一拖，可以轉動視角
+          </div>
+        )}
         {mode === "story" && (
           <SceneCanvas
             scene={scene}

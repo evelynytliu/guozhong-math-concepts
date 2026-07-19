@@ -6,7 +6,7 @@
 // - DIORAMAS：場景 id → 3D 佈景元件 的註冊表（加新場景要在這裡掛）
 
 import * as React from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { AdaptiveDpr, Html } from "@react-three/drei";
 import * as THREE from "three";
 import type { HistoryScene, HistoryTerm, StageCamera } from "@/content/history/types";
@@ -50,24 +50,81 @@ const DIORAMAS: Record<
   "s6-pingpu": PingpuDiorama,
 };
 
+function clamp(v: number, lo: number, hi: number) {
+  return Math.min(hi, Math.max(lo, v));
+}
+
 /* 鏡頭平滑飛行：往目標位置與注視點做指數趨近，
-   到定點後帶一點極輕微的漂浮晃動（遊戲鏡頭的「呼吸感」） */
+   到定點後帶一點極輕微的漂浮晃動（遊戲鏡頭的「呼吸感」）。
+   另支援「抓著轉」：滑鼠/手指按住拖曳 → 繞注視點加上偏航/俯仰偏移，
+   放開後偏移量以彈簧感緩緩歸零、回到原本設定的構圖。 */
 function CameraRig({ cam }: { cam: StageCamera }) {
+  const { gl } = useThree();
   const look = React.useRef(new THREE.Vector3(...cam.look));
   const pos = React.useRef<THREE.Vector3 | null>(null);
   const destPos = React.useMemo(() => new THREE.Vector3(...cam.pos), [cam]);
   const destLook = React.useMemo(() => new THREE.Vector3(...cam.look), [cam]);
+  // 使用者拖曳出來的視角偏移（偏航/俯仰）
+  const orbit = React.useRef({ yaw: 0, pitch: 0, dragging: false, x: 0, y: 0 });
+
+  React.useEffect(() => {
+    const el = gl.domElement;
+    const down = (e: PointerEvent) => {
+      orbit.current.dragging = true;
+      orbit.current.x = e.clientX;
+      orbit.current.y = e.clientY;
+      el.setPointerCapture?.(e.pointerId);
+    };
+    const move = (e: PointerEvent) => {
+      const o = orbit.current;
+      if (!o.dragging) return;
+      const dx = e.clientX - o.x;
+      const dy = e.clientY - o.y;
+      o.x = e.clientX;
+      o.y = e.clientY;
+      o.yaw = clamp(o.yaw - dx * 0.006, -2.4, 2.4);
+      o.pitch = clamp(o.pitch - dy * 0.0045, -0.9, 0.55);
+    };
+    const up = () => {
+      orbit.current.dragging = false;
+    };
+    el.addEventListener("pointerdown", down);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+    return () => {
+      el.removeEventListener("pointerdown", down);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+  }, [gl]);
+
   useFrame(({ camera, clock }, delta) => {
     if (!pos.current) pos.current = camera.position.clone();
     const k = 1 - Math.exp(-2.2 * delta);
     pos.current.lerp(destPos, k);
     look.current.lerp(destLook, k);
+    const o = orbit.current;
+    // 放開後：偏移量緩緩歸零（自動回到原本構圖）
+    if (!o.dragging) {
+      const back = 1 - Math.exp(-3 * delta);
+      o.yaw += (0 - o.yaw) * back;
+      o.pitch += (0 - o.pitch) * back;
+    }
     const t = clock.elapsedTime;
-    camera.position.set(
+    const base = new THREE.Vector3(
       pos.current.x + Math.sin(t * 0.5) * 0.18,
       pos.current.y + Math.sin(t * 0.35 + 1.3) * 0.14,
       pos.current.z + Math.cos(t * 0.42) * 0.18,
     );
+    // 以注視點為中心，套用拖曳偏移（球座標旋轉）
+    const v = base.sub(look.current);
+    const sph = new THREE.Spherical().setFromVector3(v);
+    sph.theta += o.yaw;
+    sph.phi = clamp(sph.phi + o.pitch, 0.15, 1.72);
+    v.setFromSpherical(sph);
+    camera.position.copy(look.current).add(v);
     camera.lookAt(look.current);
   });
   return null;
